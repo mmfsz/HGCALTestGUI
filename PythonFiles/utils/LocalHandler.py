@@ -2,7 +2,7 @@ import multiprocessing as mp
 import zmq, sys, os, signal, logging, json
 
 sys.path.append("{}".format(os.getcwd()))
-sys.path.append("{}/Tests".format(os.getcwd()))
+sys.path.append("{}/../power_control".format(os.getcwd()))
 
 # Class needed for bridging the gap between request, running test
 # and sending results back
@@ -32,7 +32,7 @@ class LocalHandler:
             if request is not None:
 
                 desired_test = request["desired_test"]
-                test_info = {"full_id": request["full_id"], "tester": request["tester"]}
+                test_info = {"thermal_dict": request["thermal_dict"], "tester": request["tester"]}
 
                 logger.info("LocalHandler: New test proc")
                 self.process_test = mp.Process(target = self.task_test, args=(conn_test, gui_cfg, desired_test, test_info))
@@ -67,7 +67,7 @@ class LocalHandler:
                 prints = 'print ; ' + str(prints)
                 q.put(prints)
 
-                json = queue.get()
+                json = conn.recv()
                 json = 'JSON ; ' + str(json)
                 q.put(str(json))
             else:
@@ -83,10 +83,9 @@ class LocalHandler:
     def task_test(self, conn_test, gui_cfg, desired_test, test_info):   
 
         # Dynamically import test class 
-        test_meta = gui_cfg["Test"][desired_test]
         # Need to strip .py from test script for import
-        mod = __import__(test_meta["TestScript"][:-3], fromlist=[test_meta["TestClass"]])
-        test_class = getattr(mod, test_meta["TestClass"])
+        mod = __import__(desired_test, fromlist=["Test"])
+        test_class = getattr(mod, "Test")
 
-        test_class(conn_test, board_sn=test_info["full_id"], tester=test_info["tester"])
+        test_class(conn_test, gui_cfg, sites=test_info["thermal_dict"], tester=test_info["tester"])
 

@@ -165,9 +165,8 @@ class ThermalTestBeginScene(ttk.Frame):
         logger.info("Sending request to begin testing...")
         sending_REQ = ThermalREQClient(
             self.gui_cfg,
-            'startCycle',
+            'thermal_cycle',
             ready_channels,
-            self.data_holder.data_dict['current_full_ID'],
             self.data_holder.data_dict['user_ID'],
             self.conn_trigger
             )

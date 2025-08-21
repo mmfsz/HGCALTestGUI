@@ -32,18 +32,20 @@ class ThermalTestConfigScene(ttk.Frame):
         self.parent = parent
 
         # Create a list of boolean values for the checkboxes
-        # TODO Verify this is correctly set up
+        # TODO (FSU) set this up for your ports
         self.checkbox_values = [
-                                False, False, False, False, False, 
-                                False, False, False, False, False, 
-                                False, False, False, False, False,
-                                False, False, False, False, False
+                                False, False, False, False,
+                                False, False, False, False,
+                                False, False, False, False,
+                                False, False, False, False,
+                                False, False, False, False,
                                 ]
         self.bool_checkbox_values = [
-                                False, False, False, False, False, 
-                                False, False, False, False, False, 
-                                False, False, False, False, False,
-                                False, False, False, False, False
+                                False, False, False, False,
+                                False, False, False, False,
+                                False, False, False, False,
+                                False, False, False, False,
+                                False, False, False, False,
                                 ]
         self.naming_scheme = [
                                 "SFP0", "SFP1", "SFP2", "SFP3",
@@ -96,36 +98,6 @@ class ThermalTestConfigScene(ttk.Frame):
         frm_engine_selection = ttk.Frame(frm_window)
         frm_engine_selection.pack(anchor='center', pady=10)
 
-        # Create a label for the engine type
-        lbl_full = ttk.Label(
-            frm_engine_selection, 
-            text="Engine Type: ", 
-            font=('Arial', '20')
-        )
-        lbl_full.pack(side='left', padx=5)
-
-        # Dynamically update dropdown menu
-        engine_types = ["LD", "HD_Half", "HD_Full"]
-        self.engine_type_selected = tk.StringVar(self)
-        self.engine_type_selected.set("")
-
-        # Creating the dropdown menu itself
-        self.engine_dropdown = tk.OptionMenu(
-            frm_engine_selection, 
-            self.engine_type_selected,  
-            *engine_types  
-        ) 
-        self.engine_dropdown.pack(side='left', padx=5)
-        self.engine_dropdown.config(width=20)
-
-        # Traces when the user selects an option in the dropdown menu
-        self.engine_type_selected.trace_add(
-            'write', 
-            lambda *args: self.dropdown_engine_selected()
-            )
-
-
-
         # Create a label for confirming test
         lbl_active = ttk.Label(
             frm_window, 
@@ -141,6 +113,7 @@ class ThermalTestConfigScene(ttk.Frame):
         checkbox_frame = ttk.Frame(frm_window)
         checkbox_frame.pack(pady=10)
 
+        # TODO (FSU) set this up for your ports
         # Loop to create 20 checkboxes (5 columns and 4 rows)
         for i in range(20):
             if i < 4:
@@ -206,10 +179,6 @@ class ThermalTestConfigScene(ttk.Frame):
         btn_setup_check.pack(anchor = 'center', pady = 5)
 
 
-
-
-
-
         # Create frame for logout button
         frm_logout = ttk.Frame(self)
         frm_logout.grid(column = 2, row = 2, padx=10, pady=10, sticky = 'se')
@@ -223,25 +192,6 @@ class ThermalTestConfigScene(ttk.Frame):
             command = lambda: self.btn_logout_action(parent))
         btn_logout.pack(anchor = 'center', pady = 5)
 
-
-        #if (self.test_idx == 0):
-
-        # # Create a button for confirming test
-        # run_all_btn = ttk.Button(
-        #     frm_logout, 
-        #     text = "Run All Tests",
-        #     command = lambda:self.run_all_action(parent),
-        #     )
-        # run_all_btn.pack(anchor = 'center', pady = 5)
-
-
-        # # Create a rescan button
-        # btn_rescan = ttk.Button(
-        #     frm_logout, 
-        #     text = "Change Boards", 
-        #     #relief = tk.RAISED, 
-        #     command = lambda: self.btn_rescan_action(parent))
-        # btn_rescan.pack(anchor = 'center', pady = 5)
 
         # Creating the help button
         btn_help = ttk.Button(
@@ -282,30 +232,24 @@ class ThermalTestConfigScene(ttk.Frame):
         
         Checkboxes = all(not value for value in self.bool_checkbox_values)
 
-        if self.current_engine_selection == None or Checkboxes == True:
+        if Checkboxes == True:
             response = messagebox.showwarning(
                 title="Missing selection!",
-                message="You need to select an Engine Type and at least one channel!"
+                message="You need to select at least one channel!"
             )
         else:
 
             logger.info("Sending request to do setup check...")
             sending_REQ = ThermalREQClient(
                 self.gui_cfg, 
-                ('fullIDs', self.current_engine_selection), 
+                "setup_check",
                 self.bool_checkbox_values, 
-                self.data_holder.data_dict['current_full_ID'],
                 self.data_holder.data_dict['user_ID'], 
                 self.conn_trigger
                 )
         
             _parent.set_frame_thermal_setup_results()
-        # TODO Complete data logging from current scene
 
-
-    def dropdown_engine_selected(self):
-        self.current_engine_selection = self.engine_type_selected.get()
-        self.data_holder.data_dict["engine_type"] = self.engine_type_selected.get()
 
     def btn_select_all_action(self, _parent):
         

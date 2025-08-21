@@ -34,7 +34,7 @@ class ThermalREQClient():
     ################################################
 
     # Ensures nothing happens on instantiantion
-    def __init__(self, gui_cfg, desired_test, thermal_dict, full_id, tester, conn_trigger):
+    def __init__(self, gui_cfg, desired_test, thermal_dict, tester, conn_trigger):
         
         logger.info("Initializing ThermalREQClient...")
         
@@ -45,14 +45,14 @@ class ThermalREQClient():
         test_handler_name = gui_cfg.getTestHandler()["name"]
 
         # Run the ZMQ server on test stand and make requests via ZMQ client
-        if test_handler_name == "ThermalZMQ":
+        if test_handler_name == "ZMQ":
 
-            self.ThermalZMQClient(gui_cfg, desired_test, thermal_dict, full_id, tester)
+            self.ThermalZMQClient(gui_cfg, thermal_dict, tester)
         
         # Run tests only on the current computer
-        elif test_handler_name == "Local":
+        elif test_handler_name == "Thermal":
 
-            self.ThermalLocalClient(conn_trigger, desired_test, thermal_dict, full_id, tester)
+            self.ThermalLocalClient(conn_trigger, desired_test, thermal_dict, tester)
 
         # Run tests on another machine via SHH (key required)
         elif test_handler_name == "SSH":
@@ -61,12 +61,11 @@ class ThermalREQClient():
 
 
     # Handling tests run on the local machine
-    def ThermalLocalClient(self, conn_trigger, desired_test, thermal_dict, full_id, tester):
+    def ThermalLocalClient(self, conn_trigger, desired_test, thermal_dict, tester):
 
-        desired_test = int(desired_test[4:])
-
-        trigger_dict = {"desired_test": desired_test, "full_id": full_id, "tester": tester}
+        trigger_dict = {"desired_test": desired_test, "thermal_dict": thermal_dict, "tester": tester}
         trigger_message = json.dumps(trigger_dict)
+        logger.debug(thermal_dict)
 
         conn_trigger.send(trigger_message)
 
@@ -80,13 +79,11 @@ class ThermalREQClient():
 
         conn_trigger.send(trigger_message)
 
-    def ThermalZMQClient(self, gui_cfg, desired_test, thermal_dict, serial, tester):
+    def ThermalZMQClient(self, gui_cfg, thermal_dict, tester):
 
-        sending_msg = (desired_test, thermal_dict, tester)
+        sending_msg = (thermal_dict, tester)
         # sending_msg = f"{desired_test};{thermal_dict};{tester}"
 
-        # Establishing variable for use
-        self.desired_test = desired_test
         # Necessary for zmqClient    
         context = zmq.Context()
 

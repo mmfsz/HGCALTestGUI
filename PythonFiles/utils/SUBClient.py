@@ -16,7 +16,7 @@ class SUBClient():
         # Instantiates variables       
         self.conn = conn
         self.message = ""
-        if gui_cfg["TestHandler"]["name"] == "Local" or gui_cfg['TestHandler']['name'] == 'SSH':
+        if gui_cfg["TestHandler"]["name"] == "Thermal" or gui_cfg['TestHandler']['name'] == 'SSH':
             self.local(conn, queue, gui_cfg, q)
         else:
             self.SUB_ZMQ(conn, queue, gui_cfg)

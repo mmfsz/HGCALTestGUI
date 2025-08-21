@@ -391,7 +391,6 @@ class ThermalTestFinalResultsScene(ttk.Frame):
                 self.data_holder.getGUIcfg(),
                 'analyzeCycle',
                 ready_channels,
-                self.data_holder.data_dict['current_full_ID'],
                 self.data_holder.data_dict['user_ID'],
                 self.conn_trigger
                 )

@@ -129,7 +129,7 @@ def run(board_cfg, curpath, host_cfg):
     #logging.FileHandler(guiLogPath + "gui.log", mode='a')
 
     # Turns creating the GUI and creating the SUBClient tasks into processes
-    if host_cfg["TestHandler"]["name"] == "Local":
+    if host_cfg["TestHandler"]["name"] == "Thermal":
         # Creates a Queue to connect SUBClient and Handler
         q = mp.Queue()
         process_GUI = mp.Process(target = task_GUI, args=(conn_GUI, conn_trigger_GUI, queue, board_cfg, curpath))
@@ -148,7 +148,7 @@ def run(board_cfg, curpath, host_cfg):
 
     # Starts the processes
     process_GUI.start()
-    if host_cfg["TestHandler"]["name"] == "Local" or host_cfg['TestHandler']['name'] == 'SSH':
+    if host_cfg["TestHandler"]["name"] == "Thermal" or host_cfg['TestHandler']['name'] == 'SSH':
         process_Handler.start()
     process_SUBClient.start()
 

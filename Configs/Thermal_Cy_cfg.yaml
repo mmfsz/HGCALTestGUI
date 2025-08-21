@@ -39,9 +39,9 @@ PhysicalTest: []
 # }
 
 TestHandler: {
-  name: ThermalZMQ, 
+  name: Thermal, 
   localip: "localhost", 
-  remoteip: "zcu102b", 
+  remoteip: "128.186.110.15", 
   username: "test_server", 
   serverpath: <serverpath>, 
   serverscript: <serverscript>
@@ -54,11 +54,5 @@ TestHandler: {
 # TODO To be updated with new DB info
 DBInfo: 
   use_database: true
-  name: WagonDB
-  reader: WagonDBReadUser
-  inserter: WagonDBInserter
-  baseURL: "http://cmslab1.spa.umn.edu/Factory/EngineDB"
-
-People:
-  - Garrett
+  baseURL: "http://128.186.110.114/Factory/mbDB"
 ...

@@ -44,6 +44,7 @@ class ThermalTestSetupResultsScene(ttk.Frame):
     def __init__(self, parent, master_frame, data_holder, queue, conn_trigger):
         super().__init__(master_frame, width=1300-213, height = 800)
         
+        #TODO (FSU) update with your site scheme
         self.naming_scheme = [
                         "SFP0", "SFP1", "SFP2", "SFP3",
                         "A1", "A2", "A3", "A4",
@@ -417,7 +418,7 @@ class ThermalTestSetupResultsScene(ttk.Frame):
         self.data_holder.data_dict["checkbox_states"] = self.checkbox_states
         
         
-        for i in range(20):
+        for i in range(min(len(state_list), len(self.checkbox_states))):
             if state_list[i][1] == -1:
                 self.failures[i] = ' '
             else:

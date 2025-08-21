@@ -14,3 +14,8 @@ __pycache__/
 *.log
 *.json
 GUILogs/*
+HGCAL_env/bin/
+HGCAL_env/lib/
+HGCAL_env/lib64
+HGCAL_env/share/
+
