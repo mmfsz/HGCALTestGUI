@@ -33,6 +33,16 @@ setup_lpgbts: {
   name: setup_lpgbts,
   method: ZMQ,
   required: 1
+  },
+lpGBTID: {
+  TestClass: MBTest_LpgbtId,
+  TestPath: /home/HGCAL_dev/scintmbdev/hgc-engine-tools/mb_tests,
+  TestScript: test_startup.py,
+  desc_long: Get ID of DAQ and TRIG lpGBTs,
+  desc_short: Get ID of DAQ and TRIG lpGBTs,
+  name: lpGBT ID,
+  method: ZMQ,
+  required: 1
   }
 }
 UsingScanner: true

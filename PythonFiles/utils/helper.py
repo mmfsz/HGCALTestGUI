@@ -8,5 +8,6 @@ def get_install_path():
     return Path(__file__).parent.parent.parent
 
 def get_logging_path():
-    return os.getenv("HOME") + "/GUILogs/testgui.log"
+    #return os.getenv("HOME") + "/GUILogs/testgui.log"
+    return os.getenv("USERPROFILE") + "/GUILogs/testgui.log" # on Windows
 

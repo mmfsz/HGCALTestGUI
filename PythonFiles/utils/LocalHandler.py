@@ -29,7 +29,7 @@ class LocalHandler:
                 break
             else:
                 request = json.loads(msg)
-            process_PUB = mp.Process(target = self.task_local, args=(conn_pub,q))
+            process_PUB = mp.Process(target = task_local, args=(conn_pub,q))
             process_PUB.start()
 
             if request is not None:
@@ -38,7 +38,7 @@ class LocalHandler:
                 test_info = {"full_id": request["full_id"], "tester": request["tester"]}
 
                 logger.info("LocalHandler: New test proc")
-                self.process_test = mp.Process(target = self.task_test, args=(conn_test, gui_cfg, desired_test, test_info))
+                self.process_test = mp.Process(target = task_test, args=(conn_test, gui_cfg, desired_test, test_info))
                 self.process_test.start()
 
                 # Hold until test finish
@@ -61,38 +61,38 @@ class LocalHandler:
         #except Exception as e:
         #    logger.error("LocalHandler: PUB and test process could not be terminated: {}".format(e))
 
-    def task_local(self, conn, q):
-        # listens for incoming data and attaches the correct topic before sending it on to SUBClient
-        #try:
-        while 1 > 0:
-            prints = conn.recv()
-            if "Done." in prints:
-                prints = 'print ; ' + str(prints)
-                q.put(prints)
+def task_local(conn, q):
+    # listens for incoming data and attaches the correct topic before sending it on to SUBClient
+    #try:
+    while 1 > 0:
+        prints = conn.recv()
+        if "Done." in prints:
+            prints = 'print ; ' + str(prints)
+            q.put(prints)
 
-                json = conn.recv()
-                json = 'JSON ; ' + str(json)
-                q.put(str(json))
-                break
-            else:
-                prints = 'print ; ' + str(prints)
-                q.put(prints)
-            
-        logger.info("LocalHandler: Loop has been broken.")
-        #except:
-        #    logging.critical("Local server has crashed.")
+            json = conn.recv()
+            json = 'JSON ; ' + str(json)
+            q.put(str(json))
+            break
+        else:
+            prints = 'print ; ' + str(prints)
+            q.put(prints)
+        
+    logger.info("LocalHandler: Loop has been broken.")
+    #except:
+    #    logging.critical("Local server has crashed.")
 
 
 
-    def task_test(self, conn_test, gui_cfg, desired_test, test_info):   
+def task_test(conn_test, gui_cfg, desired_test, test_info):   
 
-        # Dynamically import test class 
-        test_meta = gui_cfg["Test"][desired_test]
-        # Need to strip .py from test script for import
-        # TestClass is the name of the class defined in the test script
-        sys.path.append(test_meta["TestPath"])
-        mod = __import__(test_meta["TestScript"][:-3], fromlist=[test_meta["TestClass"]])
-        test_class = getattr(mod, test_meta["TestClass"])
+    # Dynamically import test class 
+    test_meta = gui_cfg["Test"][desired_test]
+    # Need to strip .py from test script for import
+    # TestClass is the name of the class defined in the test script
+    sys.path.append(test_meta["TestPath"])
+    mod = __import__(test_meta["TestScript"][:-3], fromlist=[test_meta["TestClass"]])
+    test_class = getattr(mod, test_meta["TestClass"])
 
-        test_class(conn_test, board_sn=test_info["full_id"], tester=test_info["tester"])
+    test_class(conn_test, board_sn=test_info["full_id"], tester=test_info["tester"])
 

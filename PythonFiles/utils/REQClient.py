@@ -1,4 +1,4 @@
-#####################################################################
+    #####################################################################
 #                                                                   #
 #  This is the code for a client to send a request to a server to   #
 #  run specific test scripts. You can additionally specify running  #
@@ -89,6 +89,7 @@ class REQClient():
         logger.info(debug_msg)
         
         # Tell the server what test to run
+        logger.debug(sending_msg)
         socket.send_string(sending_msg)
         
         # Timeout feature for the socket
