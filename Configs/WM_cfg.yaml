@@ -1,7 +1,7 @@
 ---
 DBInfo:
   admin: FactoryInserter
-  baseURL: http://128.186.110.114/Factory/mbDB
+  baseURL: http://128.186.110.131/Factory/mbDB
   inserter: FactoryInserter
   name: mbdb
   reader: FactoryReadUser
@@ -13,7 +13,7 @@ SerialCheckSafe: true
 TestHandler: {name: Local and ZMQ, localip: "localhost", remoteip: 128.186.110.15, username: <username>, serverpath: <serverpath>, serverscript: <serverscript>}
 PhysicalTest: []
 # name must be the same as what's in the database, or it won't be uploaded properly
-Test: { 
+Test: {
 PowerSupply: {
   TestClass: TestPower,
   TestPath: C:\Users\lab619\mb_qc_tests\dc_supply,
@@ -25,22 +25,142 @@ PowerSupply: {
   required: 1
   },
 setup_lpgbts: {
-  TestClass: MBTest_SetupLpgbts,
+  TestClass: MBTestSetupLpgbts,
   TestPath: /home/HGCAL_dev/scintmbdev/hgc-engine-tools/mb_tests,
   TestScript: test_startup.py,
   desc_long: Setup DAQ and TRIG lpGBTs,
   desc_short: Check both lpGBTs are in READY state,
-  name: setup_lpgbts,
+  name: Setup lpGBTs,
   method: ZMQ,
   required: 1
   },
 lpGBTID: {
-  TestClass: MBTest_LpgbtId,
+  TestClass: MBTestLpgbtId,
   TestPath: /home/HGCAL_dev/scintmbdev/hgc-engine-tools/mb_tests,
   TestScript: test_startup.py,
   desc_long: Get ID of DAQ and TRIG lpGBTs,
   desc_short: Get ID of DAQ and TRIG lpGBTs,
   name: lpGBT ID,
+  method: ZMQ,
+  required: 1
+  },
+eye_opening: {
+  TestClass: MBTestEyeOpening,
+  TestPath: /home/HGCAL_dev/scintmbdev/hgc-engine-tools/mb_tests,
+  TestScript: test_links.py,
+  desc_long: Measure eye opening on uplinks,
+  desc_short: Eye Opening,
+  name: Eye Opening,
+  method: ZMQ,
+  required: 1
+  },
+setup_econs: {
+  TestClass: MBTestSetupECONs,
+  TestPath: /home/HGCAL_dev/scintmbdev/hgc-engine-tools/mb_tests,
+  TestScript: test_startup.py,
+  desc_long: Setup ECONT and ECOND chips,
+  desc_short: Setup ECONs,
+  name: Setup ECONs,
+  method: ZMQ,
+  required: 1
+  },
+clock_rates: {
+  TestClass: MBTestEClockRates,
+  TestPath: /home/HGCAL_dev/scintmbdev/hgc-engine-tools/mb_tests,
+  TestScript: test_links.py,
+  desc_long: Measure eClock rates,
+  desc_short: Clock Rates,
+  name: Clock Rates,
+  method: ZMQ,
+  required: 1
+  },
+internal_i2c: {
+  TestClass: MBTestI2C,
+  TestPath: /home/HGCAL_dev/scintmbdev/hgc-engine-tools/mb_tests,
+  TestScript: test_i2c.py,
+  desc_long: Test internal I2C communication across lpGBTs and ECONs,
+  desc_short: Internal I2C,
+  name: Internal I2C,
+  method: ZMQ,
+  required: 1
+  },
+adc: {
+  TestClass: MBTestAdc,
+  TestPath: /home/HGCAL_dev/scintmbdev/hgc-engine-tools/mb_tests,
+  TestScript: test_adc.py,
+  desc_long: Test ADC functionality,
+  desc_short: ADC functionality,
+  name: ADC functionality,
+  method: ZMQ,
+  required: 1
+  },
+gpio: {
+  TestClass: MBTestGpio,
+  TestPath: /home/HGCAL_dev/scintmbdev/hgc-engine-tools/mb_tests,
+  TestScript: test_gpio.py,
+  desc_long: Test GPIO functionality,
+  desc_short: GPIO functionality,
+  name: GPIO functionality,
+  method: ZMQ,
+  required: 1
+  },
+led: {
+  TestClass: MBTestLED,
+  TestPath: /home/HGCAL_dev/scintmbdev/hgc-engine-tools/mb_tests,
+  TestScript: test_adc.py,
+  desc_long: LED voltage calibration and bias distribution,
+  desc_short: LED Monitoring,
+  name: LED Monitoring,
+  method: ZMQ,
+  required: 1
+  },
+fast_control: {
+  TestClass: MBTestFC,
+  TestPath: /home/HGCAL_dev/scintmbdev/hgc-engine-tools/mb_tests,
+  TestScript: test_links.py,
+  desc_long: Test fast control PRBS quality,
+  desc_short: Fast Control PRBS,
+  name: Fast Control PRBS,
+  method: ZMQ,
+  required: 1
+  },
+sca_uplink: {
+  TestClass: MBTestSCAUplink,
+  TestPath: /home/HGCAL_dev/scintmbdev/hgc-engine-tools/mb_tests,
+  TestScript: test_links.py,
+  desc_long: SCA Uplink PRBS test,
+  desc_short: SCA Uplink PRBS,
+  name: SCA Uplink PRBS,
+  method: ZMQ,
+  required: 1
+  },
+sca_downlink: {
+  TestClass: MBTestSCADownlink,
+  TestPath: /home/HGCAL_dev/scintmbdev/hgc-engine-tools/mb_tests,
+  TestScript: test_links.py,
+  desc_long: SCA Downlink PRBS test,
+  desc_short: SCA Downlink PRBS,
+  name: SCA Downlink PRBS,
+  method: ZMQ,
+  required: 1
+  },
+econ_tx_prbs: {
+  TestClass: MBTestEPortRxScan,
+  TestPath: /home/HGCAL_dev/scintmbdev/hgc-engine-tools/mb_tests,
+  TestScript: test_econ_tx_prbs.py,
+  desc_long: ECON Tx PRBS phase scan on uplink elinks,
+  desc_short: ECON Tx PRBS,
+  name: ECON Tx PRBS,
+  method: ZMQ,
+  required: 1
+  },
+econ_rx_prbs: {
+  TestClass: MBTestEconRxPRBS,
+  TestPath: /home/HGCAL_dev/scintmbdev/hgc-engine-tools/mb_tests,
+  TestScript: test_econ_rx_prbs.py,
+  desc_long: ECON Rx PRBS test,
+  desc_short: ECON Rx PRBS,
+  name: ECON Rx PRBS,
   method: ZMQ,
   required: 1
   }
