@@ -54,5 +54,5 @@ TestHandler: {
 # TODO To be updated with new DB info
 DBInfo: 
   use_database: true
-  baseURL: "http://128.186.110.114/Factory/mbDB"
+  baseURL: "http://128.186.110.91/Factory/mbDB"
 ...
