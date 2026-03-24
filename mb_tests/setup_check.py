@@ -38,46 +38,27 @@ class Test():
         process_zmq = mp.Process(target = self.SUB_ZMQ, args=(conn_test, gui_cfg))
         process_zmq.start()
 
-        for i,s in enumerate(sites):
-            # IF THE SITE WAS SELECTED, RUN THE SETUP TEST
-            if s:
-                # TURN ON POWER FOR THIS SITE
+        # Build comma-separated list of selected iengine site names
+        selected_iengines = [naming_scheme[i] for i, s in enumerate(sites) if s]
 
-                # TELL THE ZCU TO RUN SETUP AND GIVE IT THE SITE
-                #self.comm_zcu({"test": "setup", "site": s})
-                self.comm_zcu("lpGBTID;320WMMBD0010002;Maria")
+        if selected_iengines:
+            # Send one request to ZCU with all selected iengines
+            # Protocol: "fullIDs;SFP0,SFP1,A1,...;tester"
+            iengines_str = ",".join(selected_iengines)
+            self.comm_zcu("fullIDs;{};{}".format(iengines_str, tester))
 
-                # GET THE JSON FROM THE SETUP
-                data = json.loads(self.queue.get())['data']
-                # JSON SHOULD BE IN THE FORM OF {"lpgbt_id": id, "result": true/false}
+            # GET THE JSON FROM THE ZCU
+            # Returns a 20-element list with "ready", "failure", "warning", or "excluded" per site
+            data = json.loads(self.queue.get())
 
-                # GET SERIAL NUMBER FROM LPGBT
-                r=requests.post("{}/get_sn_from_lpgbt_id.py".format(gui_cfg["DBInfo"]["baseURL"]), data={"lpgbt_id": data["test_data"]["DAQ"]["id"]})
-                sn = r.text
-
-                # SAVE SN FOR SITE
-                #site_map[naming_scheme[i]] = sn
-                #print(sn)
-
-                # UPDATE OUTPUT
-                # SECOND NUMBER WAS FOR NUMBER OF PREVIOUS THERMAL CYCLE FAILURES
-                # COULD MAKE A FUNCTION TO GET THIS AFTER GETTING THE SERIAL NUMBER
-                #if data["result"] == "true":
-                    #output.append(["ready", 0])
-                #else:
-                    #output.append(["failure", 0])
-
-                if " " not in sn:
-                    output.append(["ready", 0])
+            # Build output in the format the GUI expects: [["ready", 0], ["failure", 0], ...]
+            for i, s in enumerate(sites):
+                if s:
+                    output.append([data[i], 0])
                 else:
-                    output.append(["failure", 0])
-
-                # TURN OFF POWER FOR THIS SITE
-
-
-                #output.append(["ready", 0])
-
-            else:
+                    output.append(["excluded", -1])
+        else:
+            for i, s in enumerate(sites):
                 output.append(["excluded", -1])
 
         # send done followed by JSON to trigger the end of the test on the GUI
@@ -133,8 +114,7 @@ class Test():
 
                 socket = context.socket(zmq.REQ)
                 
-                # TODO ZMQ What is "grabbed_ip" supposed to be?
-                socket.connect("tcp://{ip_address}:5555".format(ip_address = grabbed_ip))
+                socket.connect("tcp://{ip_address}:5555".format(ip_address = self.remote_ip))
         
                 print("ThermalREQClient: Resending...")
 

@@ -36,44 +36,44 @@ class Test():
         process_zmq = mp.Process(target = self.SUB_ZMQ, args=(conn_test, gui_cfg))
         process_zmq.start()
 
-        # LOAD IN JSON FILE THAT MATCHES SITES TO BOARD BARCODES HERE
+        # Build comma-separated list of selected iengine site names
+        selected_iengines = [naming_scheme[i] for i, s in enumerate(sites) if s]
 
-        # loop through the sites and run the test one by one
-        for i,s in enumerate(sites):
-            # IF THE SITE WAS SELECTED, RUN THE SETUP TEST
-            if s:
-                # DO STUFF LOCALLY
+        if selected_iengines:
+            # TELL THE ZCU TO START THE THERMAL CYCLING TEST LOOP
+            # Protocol: "startCycle;SFP0,SFP1,A1,...;tester"
+            iengines_str = ",".join(selected_iengines)
+            self.comm_zcu("startCycle;{};{}".format(iengines_str, tester))
 
-                # TELL THE ZCU TO RUN THE TEST
-                # pass in the string in the format that you specified in the test script on the ZCU
-                self.comm_zcu("lpGBTID;320WMMBD0010002;Maria")
+            # GET THE JSON FROM THE TEST
+            data = json.loads(self.queue.get())
+            # JSON SHOULD BE IN THE FORM OF {"passing_state": state, "results": json_attachment}
+            # you could also determine passing state later using ZCU and local info
+            # passing state is one of the states described above in STATES
 
-                # GET THE JSON FROM THE TEST
-                data = json.loads(self.queue.get())
-                # JSON SHOULD BE IN THE FORM OF {"passing_state": state, "results": json_attachment}
-                # you could also determine passing state later using ZCU and local info
-                # passing state is one of the states described above in STATES
+            # UPDATE OUTPUT JSON FOR SITE
+            for i, s in enumerate(sites):
+                if s:
+                    site_map[naming_scheme[i]] = data
+                else:
+                    site_map[naming_scheme[i]] = {"passing_state": "excluded"}
 
-                # UPDATE OUTPUT JSON FOR SITE
-                #site_map[naming_scheme[i]] = data
+            # GET THE BARCODE FOR THIS SITE
+            #barcode = get_from_json[naming_scheme[i]]
 
-                # GET THE BARCODE FOR THIS SITE
-                #barcode = get_from_json[naming_scheme[i]]
+            # construct dict in this form (tester is already an argument that is supplied to the class)
+            # define success from the passing state, 1 if passed, 0 if failed
+            #results = {"full_id": barcode, "tester": tester, "test_type": "Thermal Cycle", "successful": success, "comments": comments, "attach1": json_attachment}
 
-                # construct dict in this form (tester is already an argument that is supplied to the class)
-                # define success from the passing state, 1 if passed, 0 if failed
-                #results = {"full_id": barcode, "tester": tester, "test_type": "Thermal Cycle", "successful": success, "comments": comments, "attach1": json_attachment}
+            # upload results to database
+            #r=requests.post("{}/add_test_json.py".format(gui_cfg["DBInfo"]["baseURL"]), data=results)
 
-                # upload results to database
-                #r=requests.post("{}/add_test_json.py".format(gui_cfg["DBInfo"]["baseURL"]), data=results)
-
-
-
-            else:
+        else:
+            for i, s in enumerate(sites):
                 site_map[naming_scheme[i]] = {"passing_state": "excluded"}
 
         self.conn.send('Done.')
-        self.conn.send(json.dumps(output))
+        self.conn.send(json.dumps(site_map))
 
         # TODO SAVE site_map AS A JSON FILE
 
@@ -124,8 +124,7 @@ class Test():
 
                 socket = context.socket(zmq.REQ)
                 
-                # TODO ZMQ What is "grabbed_ip" supposed to be?
-                socket.connect("tcp://{ip_address}:5555".format(ip_address = grabbed_ip))
+                socket.connect("tcp://{ip_address}:5555".format(ip_address = self.remote_ip))
         
                 print("ThermalREQClient: Resending...")
 
