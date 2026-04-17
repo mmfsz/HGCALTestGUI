@@ -346,11 +346,10 @@ class ThermalTestSetupResultsScene(ttk.Frame):
             bool_checkbox_values.append(value)  # Ensure proper boolean conversion
         
         sending_REQ = ThermalREQClient(
-            gui_cfg, 
-            'fullIDs', 
-            bool_checkbox_values, 
-            self.data_holder.data_dict['current_full_ID'], 
-            self.data_holder.data_dict['user_ID'], 
+            gui_cfg,
+            'setup_check',
+            bool_checkbox_values,
+            self.data_holder.data_dict['user_ID'],
             self.conn_trigger
             )
 

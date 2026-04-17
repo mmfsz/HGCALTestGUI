@@ -150,10 +150,10 @@ class GUIWindow():
         self.splash_frame.grid(row=0, column=0, sticky = 'nsew')
 
         if (self.data_holder.tester_type == 'Thermal'):
-            self.thermal_in_progress_frame = ThermalTestInProgressScene(self, self.master_frame, self.data_holder, queue, self.conn_trigger)
+            self.thermal_in_progress_frame = ThermalTestInProgressScene(self, self.master_frame, self.data_holder, queue, self.conn_trigger, conn)
             self.thermal_in_progress_frame.grid(row=0, column=0, sticky='nsew')
 
-            self.thermal_begin_frame = ThermalTestBeginScene(self, self.master_frame, self.data_holder, queue, conn)
+            self.thermal_begin_frame = ThermalTestBeginScene(self, self.master_frame, self.data_holder, queue, self.conn_trigger, conn)
             self.thermal_begin_frame.grid(row=0, column=0, sticky='nsew')
 
             self.thermal_config_frame = ThermalTestConfigScene(self, self.master_frame, self.data_holder, queue, self.conn_trigger)
@@ -162,7 +162,7 @@ class GUIWindow():
             self.thermal_setup_results_frame = ThermalTestSetupResultsScene(self, self.master_frame, self.data_holder, queue, conn)
             self.thermal_setup_results_frame.grid(row=0, column=0, sticky='nsew')
             
-            self.thermal_final_results_frame = ThermalTestFinalResultsScene(self, self.master_frame, self.data_holder, queue, conn)
+            self.thermal_final_results_frame = ThermalTestFinalResultsScene(self, self.master_frame, self.data_holder, queue, self.conn_trigger, conn)
             self.thermal_final_results_frame.grid(row=0, column=0, sticky='nsew')
              
 
@@ -421,15 +421,16 @@ class GUIWindow():
 
     def set_frame_thermal_final_results(self):
         logger.info("Setting frame to thermal_final_results_frame.")
+        self.thermal_final_results_frame.load_results_from_data_holder()
+        self.thermal_final_results_frame.update_frame(self)
         self.set_frame(self.thermal_final_results_frame)
-        # self.thermal_final_results_frame.send_REQ(self.master_window, self.queue, self)
-        self.thermal_final_results_frame.send_REQ(self)
+        self.thermal_final_results_frame.request_analysis()
 
     def set_frame_thermal_test_in_progress(self):
         logger.info("Setting frame to thermal_test_in_progress_frame.")
         self.thermal_in_progress_frame.update_frame(self)
-        # self.thermal_in_progress_frame.begin_update(self.master_window, self.queue, self)
         self.set_frame(self.thermal_in_progress_frame)
+        self.thermal_in_progress_frame.start_polling()
 
     def set_frame_thermal_setup_results(self):
         logger.info("Setting frame to thermal_setup_results_frame.")

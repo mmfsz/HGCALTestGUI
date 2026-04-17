@@ -24,10 +24,11 @@ class ThermalTestBeginScene(ttk.Frame):
 
     #################################################
 
-    def __init__(self, parent, master_frame, data_holder, queue, conn_trigger):
+    def __init__(self, parent, master_frame, data_holder, queue, conn_trigger, conn_result):
         super().__init__(master_frame, width=1300-213, height = 800)
         self.queue = queue
         self.conn_trigger = conn_trigger
+        self.conn_result = conn_result
         self.data_holder = data_holder
         self.parent = parent
         
@@ -70,42 +71,42 @@ class ThermalTestBeginScene(ttk.Frame):
             text = "Begin Thermal Test", 
             font = ('Arial', '28')
             )
-        lbl_title.pack(side = 'top', pady = (10, 50))
-       
-      
+        lbl_title.pack(side = 'top', pady = (10, 20))
+
+
         lbl_section1 = ttk.Label(
-            frm_window, 
-            text = f"1. Seal the chamber door \n 2. Start the ENGIN CYCL profile on the thermal cycler", 
+            frm_window,
+            text = f"1. Seal the chamber door \n 2. Start the ENGIN CYCL profile on the thermal cycler",
             font = ('Arial', '24'),
             anchor="w",
             justify="left"
             )
-        lbl_section1.pack(side = 'top', pady = (15, 175))
-        
+        lbl_section1.pack(side = 'top', pady = (10, 30))
+
         lbl_section2_title = ttk.Label(
-            frm_window, 
-            text = "Then, verify the following:", 
+            frm_window,
+            text = "Then, verify the following:",
             font = ('Arial', '24'),
             anchor="w",
             justify="center"
             )
-        lbl_section2_title.pack(side = 'top', pady = (15, 10))
-        
+        lbl_section2_title.pack(side = 'top', pady = (10, 10))
+
         lbl_section2 = ttk.Label(
-            frm_window, 
+            frm_window,
             text = '1."ENGIN CYCL Running" is displayed on the thermal chamber screen \n 2. The rotameter indicator is at the top of the gauge \n 3. Ensure the Master Switch is turned on',font = ('Arial', '24'),
             anchor="w",
             justify="left"
             )
-        lbl_section2.pack(side = 'top', pady = (15, 200))
+        lbl_section2.pack(side = 'top', pady = (10, 30))
 
-       
+
         lbl_section3 = ttk.Label(
-            frm_window, 
-            text = "If everything is ready, click below to start the full test", 
+            frm_window,
+            text = "If everything is ready, click below to start the full test",
             font = ('Arial', '24')
             )
-        lbl_section3.pack(side = 'top', pady = 15)
+        lbl_section3.pack(side = 'top', pady = 10)
 
 
         # Create a logout button
@@ -163,6 +164,8 @@ class ThermalTestBeginScene(ttk.Frame):
                 ready_channels.append(False)
 
         logger.info("Sending request to begin testing...")
+        logger.info("checkbox_states: %s", checkbox_states)
+        logger.info("conn_trigger type: %s, conn_result type: %s", type(self.conn_trigger), type(self.conn_result))
         sending_REQ = ThermalREQClient(
             self.gui_cfg,
             'thermal_cycle',
@@ -172,6 +175,7 @@ class ThermalTestBeginScene(ttk.Frame):
             )
         #except Exception as e:
         #    messagebox.showerror('Exception', e)
+        logger.info("ThermalREQClient completed, entering begin_update...")
         self.begin_update(self.parent.master_window, self.parent.queue, self.parent)
 
         _parent.set_frame_thermal_test_in_progress()
@@ -201,7 +205,7 @@ class ThermalTestBeginScene(ttk.Frame):
                 if "Results received successfully." in signal:
                     # self.data_holder.update_from_json_string(message) 
                     message='FOO'
-                    message=self.conn_trigger.recv()
+                    message=self.conn_result.recv()
                     logger.info("ThermalTestInProgressScene: JSON Received.")
                     logger.info(message)
                     json_received=message
@@ -210,7 +214,7 @@ class ThermalTestBeginScene(ttk.Frame):
             time.sleep(0.01)
     
         if json_received:
-            self.format_json_received_to_json(json_received)
+            logger.info("Thermal cycle acknowledged: %s", json_received)
         else:
             logger.warning("No json received after allotted time.")
 

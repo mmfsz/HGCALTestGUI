@@ -30,11 +30,7 @@ class Test():
         self.conn = conn_test
         self.queue = mp.Queue()
 
-        output = []
         site_map = {}
-
-        process_zmq = mp.Process(target = self.SUB_ZMQ, args=(conn_test, gui_cfg))
-        process_zmq.start()
 
         # Build comma-separated list of selected iengine site names
         selected_iengines = [naming_scheme[i] for i, s in enumerate(sites) if s]
@@ -45,16 +41,12 @@ class Test():
             iengines_str = ",".join(selected_iengines)
             self.comm_zcu("startCycle;{};{}".format(iengines_str, tester))
 
-            # GET THE JSON FROM THE TEST
-            data = json.loads(self.queue.get())
-            # JSON SHOULD BE IN THE FORM OF {"passing_state": state, "results": json_attachment}
-            # you could also determine passing state later using ZCU and local info
-            # passing state is one of the states described above in STATES
-
-            # UPDATE OUTPUT JSON FOR SITE
+            # startCycle kicks off a long-running background process on the ZCU (hours).
+            # Results will be collected later via analyzeCycle.
+            # For now, mark selected sites as "waiting" (cycle in progress).
             for i, s in enumerate(sites):
                 if s:
-                    site_map[naming_scheme[i]] = data
+                    site_map[naming_scheme[i]] = {"passing_state": "waiting"}
                 else:
                     site_map[naming_scheme[i]] = {"passing_state": "excluded"}
 
@@ -74,11 +66,6 @@ class Test():
 
         self.conn.send('Done.')
         self.conn.send(json.dumps(site_map))
-
-        # TODO SAVE site_map AS A JSON FILE
-
-        # will need to uncomment to kill zcu listener
-        #process_zmq.terminate()
 
     def comm_zcu(self, sending_msg):
         context = zmq.Context()

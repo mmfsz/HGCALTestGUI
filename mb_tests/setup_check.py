@@ -67,8 +67,7 @@ class Test():
 
         # TODO SAVE site_map AS A JSON FILE
 
-        # will need to uncomment to kill zcu listener
-        #process_zmq.terminate()
+        process_zmq.terminate()
 
     def comm_zcu(self, sending_msg):
         context = zmq.Context()

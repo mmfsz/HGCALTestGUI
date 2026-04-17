@@ -39,10 +39,11 @@ class ThermalTestFinalResultsScene(ttk.Frame):
 
     #################################################
 
-    def __init__(self, parent, master_frame, data_holder, queue, conn_trigger):
+    def __init__(self, parent, master_frame, data_holder, queue, conn_trigger, conn_result):
         super().__init__(master_frame, width=1300-213, height = 800)
         self.queue = queue
         self.conn_trigger = conn_trigger
+        self.conn_result = conn_result
         self.data_holder = data_holder
         self.parent = parent
 
@@ -291,9 +292,102 @@ class ThermalTestFinalResultsScene(ttk.Frame):
 
     
     
+    def load_results_from_data_holder(self):
+        """Load checkbox states from data_holder so excluded sites stay excluded."""
+        stored = self.data_holder.data_dict.get("checkbox_states", [])
+        for i in range(min(len(stored), 20)):
+            if stored[i] == 'excluded':
+                self.checkbox_states[i] = 'excluded'
+            else:
+                # Sites that were tested show as "waiting" until analysis is done
+                self.checkbox_states[i] = 'waiting'
+
+    def request_analysis(self):
+        """Send analyzeCycle request to ZCU and poll for results non-blockingly."""
+        gui_cfg = self.data_holder.getGUIcfg()
+        checkbox_states = self.data_holder.data_dict.get("checkbox_states", [])
+        ready_channels = [s != 'excluded' for s in checkbox_states]
+
+        logger.info("Requesting analysis from ZCU...")
+        sending_REQ = ThermalREQClient(
+            gui_cfg,
+            'analyze_cycle',
+            ready_channels,
+            self.data_holder.data_dict['user_ID'],
+            self.conn_trigger
+        )
+        self.after(100, self.wait_for_analysis)
+
+    def wait_for_analysis(self):
+        if not self.queue.empty():
+            signal = self.queue.get()
+            if "Results received successfully." in signal:
+                message = self.conn_result.recv()
+                logger.info("Analysis received: %s", message)
+                self.apply_analysis(message)
+                return
+        self.after(100, self.wait_for_analysis)
+
+    def apply_analysis(self, json_string):
+        try:
+            data = json.loads(json_string)
+        except Exception:
+            logger.error("Failed to parse analysis result.")
+            return
+        if "error" in data:
+            logger.error("Analysis error: %s", data["error"])
+            return
+        # data is {site: {full_id, successful, test_data: {fails, total}}, ...}
+        # Update checkbox states and upload each site's results to the DB
+        db_url = self.data_holder.getGUIcfg().getDBInfo("baseURL")
+        tester = self.data_holder.data_dict.get('user_ID', '_')
+        for i, name in enumerate(self.naming_scheme):
+            if name in data:
+                site_data = data[name]
+                test_data = site_data.get('test_data', {})
+                total = test_data.get('total', 0)
+                fails = test_data.get('fails', 0)
+                if total == 0:
+                    self.checkbox_states[i] = 'waiting'
+                elif fails == 0:
+                    self.checkbox_states[i] = 'pass'
+                elif (fails / total) < (1/95) and total > 60:
+                    self.checkbox_states[i] = 'pass'
+                else:
+                    self.checkbox_states[i] = 'fail'
+                # Upload to database
+                self.upload_site_result(db_url, name, site_data, tester)
+        self.update_frame(self.parent)
+
+    def upload_site_result(self, db_url, site_name, site_data, tester):
+        """Upload a single site's thermal cycling result to the motherboard DB."""
+        try:
+            full_id = site_data.get('full_id')
+            if not full_id:
+                logger.warning("No full_id for site %s, skipping DB upload.", site_name)
+                return
+            post_data = {
+                'full_id': full_id,
+                'successful': site_data.get('successful', 0),
+                'tester': tester,
+                'test_type': 'Thermal Cycle',
+                'comments': '_',
+            }
+            attachment = {
+                'test_data': site_data.get('test_data', {}),
+                'test_criteria': '(total > 60) and (fail/total < 1/95)',
+            }
+            attach_json = json.dumps(attachment)
+            url = '{}/add_test_json.py'.format(db_url)
+            logger.info("Uploading %s (%s) to %s", site_name, full_id, url)
+            r = requests.post(url, data=post_data, files={'attach1': attach_json})
+            logger.info("DB response for %s: %s", site_name, r.text[:200])
+        except Exception as e:
+            logger.error("Failed to upload %s to DB: %s", site_name, e)
+
     def help_action(self, _parent):
         _parent.help_popup(self)
- 
+
 
     def btn_finish_action(self, _parent):
 
@@ -318,7 +412,6 @@ class ThermalTestFinalResultsScene(ttk.Frame):
                 self.gui_cfg,
                 'killCycle',
                 ready_channels,
-                self.data_holder.data_dict['current_full_ID'],
                 self.data_holder.data_dict['user_ID'],
                 self.conn_trigger
                 )
@@ -369,7 +462,6 @@ class ThermalTestFinalResultsScene(ttk.Frame):
                 self.gui_cfg,
                 'killCycle',
                 ready_channels,
-                self.data_holder.data_dict['current_full_ID'],
                 self.data_holder.data_dict['user_ID'],
                 self.conn_trigger
                 )

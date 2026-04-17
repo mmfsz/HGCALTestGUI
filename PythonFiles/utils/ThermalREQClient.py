@@ -67,7 +67,11 @@ class ThermalREQClient():
         trigger_message = json.dumps(trigger_dict)
         logger.debug(thermal_dict)
 
-        conn_trigger.send(trigger_message)
+        try:
+            conn_trigger.send(trigger_message)
+            logger.info("ThermalLocalClient: trigger sent successfully on conn_trigger")
+        except Exception as e:
+            logger.error("ThermalLocalClient: FAILED to send trigger: %s", e)
 
     # Handling tests run via SSH
     def ThermalSSHClient(self, conn_trigger, desired_test, thermal_dict, full_id, tester):

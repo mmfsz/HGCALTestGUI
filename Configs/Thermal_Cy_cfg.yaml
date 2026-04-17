@@ -41,7 +41,7 @@ PhysicalTest: []
 TestHandler: {
   name: Thermal, 
   localip: "localhost", 
-  remoteip: "128.186.110.15", 
+  remoteip: "128.186.110.147", 
   username: "test_server", 
   serverpath: <serverpath>, 
   serverscript: <serverscript>

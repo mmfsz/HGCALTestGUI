@@ -12,6 +12,7 @@ logging.getLogger('PIL').setLevel(logging.WARNING)
 import os
 import sys
 import time
+import json
 # Importing Necessary Files
 from PythonFiles.utils.ThermalREQClient import ThermalREQClient
 
@@ -27,17 +28,20 @@ class ThermalTestInProgressScene(ttk.Frame):
 
     #################################################
 
-    def __init__(self, parent, master_frame, data_holder, queue, conn_trigger):
+    def __init__(self, parent, master_frame, data_holder, queue, conn_trigger, conn_result):
         super().__init__(master_frame, width=1300-213, height = 800)
-        
+
         self.console_text = None
         self.original_stdout = sys.stdout  # Store the default stdout
-        
+
         self.queue = queue
         self.conn_trigger = conn_trigger
+        self.conn_result = conn_result
         self.data_holder = data_holder
         self.parent = parent
-        
+        self._poll_id = None
+        self._poll_start_time = None
+
         self.update_frame(parent)
 
         # Restore to default (in constructor)
@@ -74,7 +78,7 @@ class ThermalTestInProgressScene(ttk.Frame):
             text = "Thermal Test in Progress", 
             font = ('Arial', '28')
             )
-        lbl_title.pack(side = 'top', pady = 10)
+        lbl_title.pack(side = 'top', pady = 5)
         
 
         # # Create the rectangle canvas
@@ -113,7 +117,8 @@ class ThermalTestInProgressScene(ttk.Frame):
 
         # Clear and start the countdown from 2 hours (7200 seconds)
         self.cancel_timer()
-        self.remaining_time = 7200
+        # self.remaining_time = 7200
+        self.remaining_time = 60  # DEBUG: 1 minute to match ZCU debug duration
         self.update_timer()
 
 
@@ -219,6 +224,77 @@ class ThermalTestInProgressScene(ttk.Frame):
 
     
     
+    def console_print(self, text):
+        if self.console_text:
+            self.console_text.config(state="normal")
+            self.console_text.insert(tk.END, text + "\n")
+            self.console_text.see(tk.END)
+            self.console_text.config(state="disabled")
+
+    def start_polling(self):
+        self._poll_start_time = time.time()
+        self.console_print("Thermal cycling started. Polling ZCU for status every 5 minutes...\n")
+        # First poll after 10 seconds, then every 5 minutes
+        self._poll_id = self.after(10000, self.poll_status)
+
+    def stop_polling(self):
+        if self._poll_id:
+            self.after_cancel(self._poll_id)
+            self._poll_id = None
+
+    def poll_status(self):
+        logger.info("Polling ZCU for cycle status...")
+        gui_cfg = self.data_holder.getGUIcfg()
+
+        checkbox_states = self.data_holder.data_dict.get("checkbox_states", [])
+        ready_channels = [s != 'excluded' for s in checkbox_states]
+
+        sending_REQ = ThermalREQClient(
+            gui_cfg,
+            'status_poll',
+            ready_channels,
+            self.data_holder.data_dict['user_ID'],
+            self.conn_trigger
+        )
+        # Start checking for the response non-blockingly
+        self.after(100, self.wait_for_status)
+
+    def wait_for_status(self):
+        if not self.queue.empty():
+            signal = self.queue.get()
+            if "Results received successfully." in signal:
+                message = self.conn_result.recv()
+                logger.info("Status received: %s", message)
+                self.display_status(message)
+                # Schedule next poll in 5 minutes
+                # self._poll_id = self.after(300000, self.poll_status)
+                self._poll_id = self.after(30000, self.poll_status)  # DEBUG: 30s
+                return
+        # Not ready yet, check again in 100ms
+        self.after(100, self.wait_for_status)
+
+    def display_status(self, json_string):
+        try:
+            data = json.loads(json_string)
+        except Exception:
+            self.console_print("Failed to parse status from ZCU.")
+            return
+
+        if "error" in data:
+            self.console_print(f"Status error: {data['error']}")
+            return
+
+        elapsed = int(time.time() - self._poll_start_time)
+        hours, remainder = divmod(elapsed, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        total_cycles = max((c.get("total", 0) for c in data.values()), default=0)
+        self.console_print(f"--- Status update (elapsed: {hours:02d}:{minutes:02d}:{seconds:02d}, {total_cycles} cycles) ---")
+        for site, counts in data.items():
+            passed = counts.get("passed", 0)
+            failed = counts.get("failed", 0)
+            self.console_print(f"  {site}: {passed} passed, {failed} failed")
+        self.console_print("")
+
     def help_action(self, _parent):
         _parent.help_popup(self)
  
@@ -240,6 +316,7 @@ class ThermalTestInProgressScene(ttk.Frame):
 
         if confirm:
             logger.info("User stopped thermal testing early!")
+            self.stop_polling()
             self.cancel_timer()
 
             logger.info("Sending request to stop thermal testing early...")
@@ -247,7 +324,6 @@ class ThermalTestInProgressScene(ttk.Frame):
                 self.gui_cfg,
                 'killCycle',
                 ready_channels,
-                self.data_holder.data_dict['current_full_ID'],
                 self.data_holder.data_dict['user_ID'],
                 self.conn_trigger
                 )
@@ -275,6 +351,7 @@ class ThermalTestInProgressScene(ttk.Frame):
                 ready_channels.append(False)
 
         if response:
+            self.stop_polling()
             self.cancel_timer()
             # sys.stdout = self.original_stdout
             
