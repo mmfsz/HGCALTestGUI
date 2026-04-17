@@ -499,7 +499,7 @@ class ThermalTestFinalResultsScene(ttk.Frame):
 
                 if "Results received successfully." in signal:
                     message = "FOO"
-                    message = self.conn_trigger.recv()
+                    message = self.conn_result.recv()
                     logger.info("ThermalTestFinalResultsScene: JSON Received.")
                     logger.info(message)
                     

@@ -41,9 +41,9 @@ class ThermalTestSetupResultsScene(ttk.Frame):
 
     #################################################
 
-    def __init__(self, parent, master_frame, data_holder, queue, conn_trigger):
+    def __init__(self, parent, master_frame, data_holder, queue, conn_trigger, conn_result):
         super().__init__(master_frame, width=1300-213, height = 800)
-        
+
         #TODO (FSU) update with your site scheme
         self.naming_scheme = [
                         "SFP0", "SFP1", "SFP2", "SFP3",
@@ -52,15 +52,16 @@ class ThermalTestSetupResultsScene(ttk.Frame):
                         "C1", "C2", "C3", "C4",
                         "D1", "D2", "D3", "D4"
                     ]
-        
+
         # Initialize the states
         self.checkbox_states = ["waiting"]*20
 
         self.console_text = None
         self.original_stdout = sys.stdout  # Store the default stdout
-        
+
         self.queue = queue
         self.conn_trigger = conn_trigger
+        self.conn_result = conn_result
         self.data_holder = data_holder
         self.parent = parent
         self.is_initial_check = True
@@ -475,7 +476,7 @@ class ThermalTestSetupResultsScene(ttk.Frame):
                 
                 if "Results received successfully." in signal:
                     message = "FOO"
-                    message =  self.conn_trigger.recv()
+                    message =  self.conn_result.recv()
                     logger.info("ThermalTestSetupResultsScene: JSON Received.")
                     logger.info(message)
                     if 'completed' not in message:
