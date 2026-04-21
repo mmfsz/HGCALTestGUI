@@ -68,6 +68,15 @@ class Test():
             if isinstance(data, dict) and 'states' in data:
                 states = data['states']
                 full_ids_map = data.get('fullIDs', {})
+                # The ZCU's get_fullIDs writes the raw DB HTTP response into
+                # full_id, which can be an error string like "Could not find
+                # full_id associated with LPGBT ID 0x...". Normalize those to
+                # None so downstream upload logic skips them cleanly.
+                for _site, _entry in full_ids_map.items():
+                    if isinstance(_entry, dict):
+                        fid = _entry.get('full_id')
+                        if isinstance(fid, str) and 'could not find' in fid.lower():
+                            _entry['full_id'] = None
                 # Merge with any existing cache so rechecks update per-site entries
                 # without wiping data from sites that weren't in this request.
                 try:

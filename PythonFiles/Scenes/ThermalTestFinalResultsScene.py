@@ -56,7 +56,12 @@ class ThermalTestFinalResultsScene(ttk.Frame):
                             ]
         self.checkbox_states = ['waiting']*20
 
+        self.load_results_from_data_holder()
         self.update_frame(parent)
+        # Give the scene a moment to render, then fetch analysis. Delay also
+        # lets any in-flight power_off response from InProgressScene.btn_next
+        # drain first — request_analysis additionally flushes stale messages.
+        self.after(500, self.request_analysis)
     #################################################
 
     def create_style(self, _parent):
@@ -303,13 +308,31 @@ class ThermalTestFinalResultsScene(ttk.Frame):
                 self.checkbox_states[i] = 'waiting'
 
     def request_analysis(self):
-        """Send analyzeCycle request to ZCU and poll for results non-blockingly."""
+        """Send analyze_cycle request to the Pi and poll for results non-blockingly."""
         gui_cfg = self.data_holder.getGUIcfg()
         checkbox_states = self.data_holder.data_dict.get("checkbox_states", [])
         ready_channels = [s != 'excluded' for s in checkbox_states]
 
-        logger.info("Requesting analysis from ZCU...")
-        sending_REQ = ThermalREQClient(
+        # Drain stale messages (e.g. the power_off response from InProgressScene)
+        # so wait_for_analysis picks up our analyze_cycle reply, not leftover noise.
+        drained = 0
+        while not self.queue.empty():
+            try:
+                self.queue.get_nowait()
+                drained += 1
+            except Exception:
+                break
+        while self.conn_result.poll():
+            try:
+                self.conn_result.recv()
+                drained += 1
+            except Exception:
+                break
+        if drained:
+            logger.info("request_analysis: drained %d stale messages", drained)
+
+        logger.info("Requesting analysis from Pi analyze_cycle...")
+        ThermalREQClient(
             gui_cfg,
             'analyze_cycle',
             ready_channels,

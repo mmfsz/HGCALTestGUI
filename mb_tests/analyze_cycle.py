@@ -25,6 +25,14 @@ def _load_fullids():
         with open(FULLIDS_CACHE) as f:
             data = json.load(f)
         if isinstance(data, dict):
+            # Normalize error-string full_ids to None (defence in depth —
+            # setup_check already does this, but a hand-edited cache could
+            # still contain raw DB error text).
+            for entry in data.values():
+                if isinstance(entry, dict):
+                    fid = entry.get('full_id')
+                    if isinstance(fid, str) and 'could not find' in fid.lower():
+                        entry['full_id'] = None
             return data
     except (FileNotFoundError, ValueError):
         pass
