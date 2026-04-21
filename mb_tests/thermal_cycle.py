@@ -5,6 +5,8 @@ import json
 import time
 import requests
 
+from power_manager import PowerManager
+
 STATES = {
     "pass": "Pass",
     "fail": "Fail",
@@ -36,6 +38,11 @@ class Test():
         selected_iengines = [naming_scheme[i] for i, s in enumerate(sites) if s]
 
         if selected_iengines:
+            # Ensure selected sites are powered before the long-running cycle starts.
+            # power_on is idempotent — safe if sites were already on from setup_check.
+            pm = PowerManager()
+            pm.power_on(selected_iengines)
+
             # TELL THE ZCU TO START THE THERMAL CYCLING TEST LOOP
             # Protocol: "startCycle;SFP0,SFP1,A1,...;tester"
             iengines_str = ",".join(selected_iengines)

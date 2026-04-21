@@ -327,7 +327,18 @@ class ThermalTestInProgressScene(ttk.Frame):
                 self.data_holder.data_dict['user_ID'],
                 self.conn_trigger
                 )
-            
+
+            # Power off all tested sites. LocalHandler serializes triggers so
+            # this runs after killCycle completes; power_off.py adds a settle
+            # delay before cutting power to avoid mid-I2C bus latching.
+            ThermalREQClient(
+                self.gui_cfg,
+                'power_off',
+                ready_channels,
+                self.data_holder.data_dict['user_ID'],
+                self.conn_trigger
+                )
+
             _parent.set_frame_thermal_final_results()
 
         pass 
@@ -354,16 +365,26 @@ class ThermalTestInProgressScene(ttk.Frame):
             self.stop_polling()
             self.cancel_timer()
             # sys.stdout = self.original_stdout
-            
+
+            # Cycle ended naturally — ZCU subprocess already exited at its
+            # max_cycles boundary, so power-off here is race-free.
+            ThermalREQClient(
+                self.gui_cfg,
+                'power_off',
+                ready_channels,
+                self.data_holder.data_dict['user_ID'],
+                self.conn_trigger
+                )
+
             #sending_REQ = ThermalREQClient(
             #    self.gui_cfg,
-            #    'analyzeCycle', 
+            #    'analyzeCycle',
             #    ready_channels,
             #    self.data_holder.data_dict['current_full_ID'],
             #    self.data_holder.data_dict['user_ID'],
             #    self.conn_trigger
             #    )
-            _parent.set_frame_thermal_final_results() 
+            _parent.set_frame_thermal_final_results()
         
 
     #################################################      

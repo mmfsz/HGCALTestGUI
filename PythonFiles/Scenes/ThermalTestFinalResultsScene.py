@@ -415,8 +415,17 @@ class ThermalTestFinalResultsScene(ttk.Frame):
                 self.data_holder.data_dict['user_ID'],
                 self.conn_trigger
                 )
-        
 
+            # Power off all tested sites after killCycle completes.
+            # LocalHandler serializes triggers, so power_off runs once
+            # killCycle has returned from the ZCU.
+            ThermalREQClient(
+                self.gui_cfg,
+                'power_off',
+                ready_channels,
+                self.data_holder.data_dict['user_ID'],
+                self.conn_trigger
+                )
 
         logger.info("Successfully Finished Thermal Testing.")
         _parent.set_frame_login_frame()
@@ -461,6 +470,14 @@ class ThermalTestFinalResultsScene(ttk.Frame):
             sending_REQ = ThermalREQClient(
                 self.gui_cfg,
                 'killCycle',
+                ready_channels,
+                self.data_holder.data_dict['user_ID'],
+                self.conn_trigger
+                )
+
+            ThermalREQClient(
+                self.gui_cfg,
+                'power_off',
                 ready_channels,
                 self.data_holder.data_dict['user_ID'],
                 self.conn_trigger

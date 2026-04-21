@@ -5,6 +5,8 @@ import json
 import time
 import requests
 
+from power_manager import PowerManager
+
 STATES = {
     "ready": ("✔", "green"),
     "failure": ("✖", "red"),
@@ -42,6 +44,12 @@ class Test():
         selected_iengines = [naming_scheme[i] for i, s in enumerate(sites) if s]
 
         if selected_iengines:
+            # Power on selected sites before asking the ZCU to read chip IDs.
+            # PowerManager logs+skips any board that's not wired, so unreachable
+            # sites won't block the flow — they'll just fail the fullIDs read.
+            pm = PowerManager()
+            pm.power_on(selected_iengines)
+
             # Send one request to ZCU with all selected iengines
             # Protocol: "fullIDs;SFP0,SFP1,A1,...;tester"
             iengines_str = ",".join(selected_iengines)
