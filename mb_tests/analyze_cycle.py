@@ -1,45 +1,69 @@
-import zmq, logging
+"""Summarize per-site fail/total counts from the local cycle_loop results.
+
+Returns the shape ThermalTestFinalResultsScene.apply_analysis expects:
+{site: {'full_id': ..., 'successful': 0/1, 'test_data': {'fails': N, 'total': N}}}
+
+full_id is not populated here (cycle_loop doesn't carry it); the DB-upload
+path in the final-results scene skips uploads with no full_id, which is
+acceptable until we plumb full_id through.
+"""
+
 import json
+import logging
+
+import cycle_loop
 
 logger = logging.getLogger('HGCALTestGUI.mb_tests.analyze_cycle')
+
 
 class Test():
 
     def __init__(self, conn_test, gui_cfg, sites=None, tester=None):
-
-        self.remote_ip = gui_cfg["TestHandler"]["remoteip"]
-        self.message = ""
-        self.conn = conn_test
-
-        # Send analyzeCycle request to ZCU
-        self.comm_zcu("analyzeCycle;;{}".format(tester or ""))
-
-        # Forward the ZCU's reply as the test result
-        self.conn.send('Done.')
-        self.conn.send(self.message if self.message else json.dumps({"error": "No response from ZCU"}))
-
-    def comm_zcu(self, sending_msg):
-        context = zmq.Context()
-
-        socket = context.socket(zmq.REQ)
-        logger.info("analyze_cycle: Connecting to tcp://%s:5555", self.remote_ip)
-        socket.connect("tcp://{ip_address}:5555".format(ip_address=self.remote_ip))
-
-        logger.info("analyze_cycle: Sending request: %s", sending_msg)
-        socket.send_string(sending_msg)
-
-        REQUEST_TIMEOUT = 30000  # 30s — analysis may take a moment
+        per_site = {}
         try:
-            if (socket.poll(REQUEST_TIMEOUT) & zmq.POLLIN) != 0:
-                self.message = socket.recv_string()
-                logger.info("analyze_cycle: Got response (%d chars)", len(self.message))
-            else:
-                logger.error("analyze_cycle: Poll timed out after %dms", REQUEST_TIMEOUT)
+            with open(cycle_loop.RESULTS_PATH) as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        entry = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
+                    results = entry.get('results', {})
+                    if not isinstance(results, dict) or 'error' in results:
+                        continue
+                    for site, data in results.items():
+                        s = per_site.setdefault(site, {'total': 0, 'fails': 0})
+                        s['total'] += 1
+                        if not data.get('connection', {}).get('passed', False):
+                            s['fails'] += 1
+        except FileNotFoundError:
+            conn_test.send('Done.')
+            conn_test.send(json.dumps({'error': 'no results file yet'}))
+            return
         except Exception as e:
-            logger.error("analyze_cycle: Failed to communicate with ZCU: %s", e)
+            logger.exception('analyze_cycle failed')
+            conn_test.send('Done.')
+            conn_test.send(json.dumps({'error': str(e)}))
+            return
 
-        try:
-            socket.close()
-            context.term()
-        except:
-            pass
+        out = {}
+        for site, counts in per_site.items():
+            total = counts['total']
+            fails = counts['fails']
+            # Same criterion the scene uses: pass if fails==0, or <1/95 fail rate over >60 cycles
+            if total == 0:
+                successful = 0
+            elif fails == 0 or (fails / total < 1/95 and total > 60):
+                successful = 1
+            else:
+                successful = 0
+            out[site] = {
+                'full_id': None,
+                'successful': successful,
+                'test_data': {'fails': fails, 'total': total},
+            }
+
+        conn_test.send('Done.')
+        conn_test.send(json.dumps(out))

@@ -1,45 +1,47 @@
-import zmq, logging
+"""Summarize the local cycle_loop results file.
+
+The cycle loop runs on the Pi now (not the ZCU), so status is read from
+the Pi-local JSON file cycle_loop writes to. Returns per-site pass/fail
+counts in the shape ThermalTestInProgressScene.display_status expects.
+"""
+
 import json
+import logging
+
+import cycle_loop
 
 logger = logging.getLogger('HGCALTestGUI.mb_tests.status_poll')
+
 
 class Test():
 
     def __init__(self, conn_test, gui_cfg, sites=None, tester=None):
-
-        self.remote_ip = gui_cfg["TestHandler"]["remoteip"]
-        self.message = ""
-        self.conn = conn_test
-
-        # Send statusCycle request to ZCU
-        self.comm_zcu("statusCycle;;")
-
-        # Forward the ZCU's reply as the test result
-        self.conn.send('Done.')
-        self.conn.send(self.message if self.message else json.dumps({"error": "No response from ZCU"}))
-
-    def comm_zcu(self, sending_msg):
-        context = zmq.Context()
-
-        socket = context.socket(zmq.REQ)
-        logger.info("status_poll: Connecting to tcp://%s:5555", self.remote_ip)
-        socket.connect("tcp://{ip_address}:5555".format(ip_address = self.remote_ip))
-
-        logger.info("status_poll: Sending request: %s", sending_msg)
-        socket.send_string(sending_msg)
-
-        REQUEST_TIMEOUT = 10000
+        summary = {}
         try:
-            if (socket.poll(REQUEST_TIMEOUT) & zmq.POLLIN) != 0:
-                self.message = socket.recv_string()
-                logger.info("status_poll: Got response (%d chars): %.100s", len(self.message), self.message)
-            else:
-                logger.error("status_poll: Poll timed out after %dms - ZCU REPServer may be stuck", REQUEST_TIMEOUT)
+            with open(cycle_loop.RESULTS_PATH) as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        entry = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
+                    results = entry.get('results', {})
+                    if not isinstance(results, dict) or 'error' in results:
+                        continue
+                    for site, data in results.items():
+                        s = summary.setdefault(site, {'total': 0, 'passed': 0, 'failed': 0})
+                        s['total'] += 1
+                        if data.get('connection', {}).get('passed', False):
+                            s['passed'] += 1
+                        else:
+                            s['failed'] += 1
+        except FileNotFoundError:
+            summary = {'error': 'no results file yet'}
         except Exception as e:
-            logger.error("status_poll: Failed to communicate with ZCU: %s", e)
+            logger.exception('status_poll failed')
+            summary = {'error': str(e)}
 
-        try:
-            socket.close()
-            context.term()
-        except:
-            pass
+        conn_test.send('Done.')
+        conn_test.send(json.dumps(summary))

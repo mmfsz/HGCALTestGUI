@@ -118,7 +118,7 @@ class ThermalTestInProgressScene(ttk.Frame):
         # Clear and start the countdown from 2 hours (7200 seconds)
         self.cancel_timer()
         # self.remaining_time = 7200
-        self.remaining_time = 60  # DEBUG: 1 minute to match ZCU debug duration
+        self.remaining_time = 30  # DEBUG: 30s to match cycle_loop RUNTIME_M=0.5
         self.update_timer()
 
 
@@ -268,7 +268,7 @@ class ThermalTestInProgressScene(ttk.Frame):
                 self.display_status(message)
                 # Schedule next poll in 5 minutes
                 # self._poll_id = self.after(300000, self.poll_status)
-                self._poll_id = self.after(30000, self.poll_status)  # DEBUG: 30s
+                self._poll_id = self.after(10000, self.poll_status)  # DEBUG: 10s to fit 30s run
                 return
         # Not ready yet, check again in 100ms
         self.after(100, self.wait_for_status)
