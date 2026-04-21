@@ -3,17 +3,34 @@
 Returns the shape ThermalTestFinalResultsScene.apply_analysis expects:
 {site: {'full_id': ..., 'successful': 0/1, 'test_data': {'fails': N, 'total': N}}}
 
-full_id is not populated here (cycle_loop doesn't carry it); the DB-upload
-path in the final-results scene skips uploads with no full_id, which is
-acceptable until we plumb full_id through.
+full_id is pulled from the Pi-local cache setup_check wrote after the
+fullIDs handshake with the ZCU. Sites without a cached full_id get None
+(DB upload in the final-results scene is skipped for those).
 """
 
 import json
 import logging
+from pathlib import Path
 
 import cycle_loop
 
 logger = logging.getLogger('HGCALTestGUI.mb_tests.analyze_cycle')
+
+# Must match setup_check.FULLIDS_CACHE
+FULLIDS_CACHE = str(Path.home() / 'thermal_cycle_fullids.json')
+
+
+def _load_fullids():
+    try:
+        with open(FULLIDS_CACHE) as f:
+            data = json.load(f)
+        if isinstance(data, dict):
+            return data
+    except (FileNotFoundError, ValueError):
+        pass
+    except Exception as e:
+        logger.warning('could not load full_ids cache: %s', e)
+    return {}
 
 
 class Test():
@@ -48,6 +65,7 @@ class Test():
             conn_test.send(json.dumps({'error': str(e)}))
             return
 
+        fullids = _load_fullids()
         out = {}
         for site, counts in per_site.items():
             total = counts['total']
@@ -59,8 +77,10 @@ class Test():
                 successful = 1
             else:
                 successful = 0
+            entry = fullids.get(site) or {}
+            full_id = entry.get('full_id') if isinstance(entry, dict) else None
             out[site] = {
-                'full_id': None,
+                'full_id': full_id,
                 'successful': successful,
                 'test_data': {'fails': fails, 'total': total},
             }

@@ -4,6 +4,10 @@ Spawns cycle_loop.run as a non-daemon background process so the LocalHandler
 subprocess can return immediately and free the trigger pipe for follow-up
 requests (status_poll, killCycle, power_off). The loop owns power and
 pacing; the ZCU only runs single-pass conn tests via its 'runOnce' endpoint.
+
+To avoid orphaned loops outliving a GUI crash, we capture the GUI's PID
+(grandparent of this task_test subprocess) and pass it to cycle_loop so it
+can self-terminate when the GUI is gone.
 """
 
 import json
@@ -12,6 +16,21 @@ import multiprocessing as mp
 import os
 
 import cycle_loop
+
+
+def _find_gui_pid():
+    """Grandparent PID: task_test -> LocalHandler -> GUI main.
+    Returns None if /proc isn't available or the walk fails (cycle_loop
+    then just skips the liveness check)."""
+    try:
+        with open('/proc/{}/status'.format(os.getppid())) as f:
+            for line in f:
+                if line.startswith('PPid:'):
+                    pid = int(line.split()[1])
+                    return pid if pid > 1 else None
+    except (FileNotFoundError, ValueError, PermissionError):
+        pass
+    return None
 
 logger = logging.getLogger('HGCALTestGUI.mb_tests.thermal_cycle')
 
@@ -58,9 +77,12 @@ class Test():
             # Start a fresh results file so status_poll only sees this run.
             open(cycle_loop.RESULTS_PATH, 'w').close()
 
+            gui_pid = _find_gui_pid()
+            logger.info('capturing GUI pid=%s for crash-teardown check', gui_pid)
             p = mp.Process(
                 target=cycle_loop.run,
                 args=(remote_ip, selected, RUNTIME_M, tester),
+                kwargs={'gui_pid': gui_pid},
                 daemon=False,
             )
             p.start()

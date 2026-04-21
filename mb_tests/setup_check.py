@@ -4,8 +4,14 @@ import os
 import json
 import time
 import requests
+from pathlib import Path
 
 from power_manager import PowerManager
+
+# Pi-local cache of per-site {full_id, thermal_ready}. Written here at the
+# end of setup_check so analyze_cycle can fill the full_id field on results
+# uploaded to the MB database.
+FULLIDS_CACHE = str(Path.home() / 'thermal_cycle_fullids.json')
 
 STATES = {
     "ready": ("✔", "green"),
@@ -56,13 +62,29 @@ class Test():
             self.comm_zcu("fullIDs;{};{}".format(iengines_str, tester))
 
             # GET THE JSON FROM THE ZCU
-            # Returns a 20-element list with "ready", "failure", "warning", or "excluded" per site
+            # ZCU returns {"states": [20-element list], "fullIDs": {site: {full_id, thermal_ready}}}
+            # (old format: bare 20-element list — handle for backward compat)
             data = json.loads(self.queue.get())
+            if isinstance(data, dict) and 'states' in data:
+                states = data['states']
+                full_ids_map = data.get('fullIDs', {})
+                # Merge with any existing cache so rechecks update per-site entries
+                # without wiping data from sites that weren't in this request.
+                try:
+                    with open(FULLIDS_CACHE) as f:
+                        existing = json.load(f)
+                except (FileNotFoundError, ValueError):
+                    existing = {}
+                existing.update(full_ids_map)
+                with open(FULLIDS_CACHE, 'w') as f:
+                    json.dump(existing, f, indent=2)
+            else:
+                states = data  # legacy shape
 
             # Build output in the format the GUI expects: [["ready", 0], ["failure", 0], ...]
             for i, s in enumerate(sites):
                 if s:
-                    output.append([data[i], 0])
+                    output.append([states[i], 0])
                 else:
                     output.append(["excluded", -1])
         else:

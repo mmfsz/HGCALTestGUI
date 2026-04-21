@@ -46,6 +46,21 @@ RUNBATCH_BASE_TIMEOUT_MS = 60000
 RUNBATCH_PER_CYCLE_MS = 30000
 
 
+def _pid_alive(pid):
+    """Return True if pid exists. os.kill(pid, 0) is a no-op signal that
+    raises ProcessLookupError if the process is gone."""
+    if pid is None:
+        return True
+    try:
+        os.kill(pid, 0)
+        return True
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        # Process exists but owned by another user — still alive.
+        return True
+
+
 def _runBatch_zcu(remote_ip, iengines, tester, n_cycles):
     """Send 'runBatch;site1,site2,...;tester;n_cycles' to ZCU.
     Returns parsed JSON result (with 'cycles' list) or None on failure."""
@@ -72,7 +87,7 @@ def _runBatch_zcu(remote_ip, iengines, tester, n_cycles):
 
 
 def run(remote_ip, selected_sites, runtime_m, tester,
-        results_path=None, cycles_per_restart=None):
+        results_path=None, cycles_per_restart=None, gui_pid=None):
     results_path = results_path or RESULTS_PATH
     n_cycles = cycles_per_restart if cycles_per_restart is not None else CYCLES_PER_RESTART
     Path(results_path).parent.mkdir(exist_ok=True, parents=True)
@@ -94,6 +109,9 @@ def run(remote_ip, selected_sites, runtime_m, tester,
     try:
         while datetime.now() < end:
             if stopped['flag'] or os.path.exists(STOP_FLAG):
+                break
+            if not _pid_alive(gui_pid):
+                logger.warning('GUI pid=%s no longer alive; exiting cycle_loop', gui_pid)
                 break
             batch_count += 1
             t0 = datetime.now()
