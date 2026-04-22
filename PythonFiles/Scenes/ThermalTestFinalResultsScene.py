@@ -398,7 +398,11 @@ class ThermalTestFinalResultsScene(ttk.Frame):
             }
             attachment = {
                 'test_data': site_data.get('test_data', {}),
-                'test_criteria': '(total > 60) and (fail/total < 1/95)',
+                # Must stay in sync with the pass-rule in apply_analysis
+                # (this file) and mb_tests/analyze_cycle.py. The fails==0
+                # shortcut lets short debug runs still register a pass — in
+                # production runs total >> 60 so the two clauses converge.
+                'test_criteria': '(fails == 0) OR (total > 60 AND fail/total < 1/95)',
             }
             attach_json = json.dumps(attachment)
             url = '{}/add_test_json.py'.format(db_url)
