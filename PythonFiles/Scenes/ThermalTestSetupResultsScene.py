@@ -451,7 +451,38 @@ class ThermalTestSetupResultsScene(ttk.Frame):
             else:
                 self.failures[i] = state_list[i][1]
 
+    def _drain_stale_messages(self, queue):
+        """Discard any leftover queue/pipe messages from a previous run.
+
+        Without this, the analyze_cycle output from the prior campaign
+        (a dict keyed by site name) is read here and crashes
+        apply_initial_check_results with KeyError: 0 because it expects
+        a list of [state, count] pairs from setup_check."""
+        drained_q = 0
+        for _ in range(1000):
+            try:
+                queue.get_nowait()
+                drained_q += 1
+            except Exception:
+                break
+        drained_p = 0
+        for _ in range(1000):
+            if not self.conn_result.poll():
+                break
+            try:
+                self.conn_result.recv()
+                drained_p += 1
+            except Exception:
+                break
+        if drained_q or drained_p:
+            logger.info("Drained %d queue + %d pipe messages from prior run",
+                        drained_q, drained_p)
+
     def begin_update(self, master_window, queue, parent):
+        # Drop stale messages before scheduling the new wait, otherwise the
+        # previous run's analyze_cycle JSON contaminates this check.
+        self._drain_stale_messages(queue)
+
         #Create loading popup while waiting for json to be sent from server
         self.loading_popup = tk.Toplevel(self)
         self.loading_popup.title("Loading...")
