@@ -15,6 +15,7 @@ import logging
 import multiprocessing as mp
 import os
 from datetime import datetime
+from pathlib import Path
 
 import cycle_loop
 
@@ -81,19 +82,27 @@ class Test():
                     os.remove(cycle_loop.STOP_FLAG)
                 except OSError:
                     pass
-            # Rotate any prior run's results file so this run starts fresh
-            # but the previous campaign's data remains accessible on disk
-            # (the DB attachment for that campaign should already mirror it).
+            # Archive the prior run's results into ~/thermal_cycle_logs/ so a
+            # full history stays on disk (belt-and-suspenders against a DB
+            # upload failing silently). Filename uses the file's mtime —
+            # i.e. roughly when the prior campaign ended — in a sortable,
+            # human-readable form: thermal_cycle_2026-05-01_22-00-00.json.
             if os.path.exists(cycle_loop.RESULTS_PATH):
                 try:
-                    rotated = '{}.{}'.format(
-                        cycle_loop.RESULTS_PATH,
-                        datetime.now().strftime('%Y%m%d-%H%M%S'),
-                    )
-                    os.rename(cycle_loop.RESULTS_PATH, rotated)
-                    logger.info('rotated prior results to %s', rotated)
+                    archive_dir = Path.home() / 'thermal_cycle_logs'
+                    archive_dir.mkdir(exist_ok=True, parents=True)
+                    try:
+                        ts = datetime.fromtimestamp(
+                            os.path.getmtime(cycle_loop.RESULTS_PATH))
+                    except OSError:
+                        ts = datetime.now()
+                    archive_name = 'thermal_cycle_{}.json'.format(
+                        ts.strftime('%Y-%m-%d_%H-%M-%S'))
+                    archive_path = archive_dir / archive_name
+                    os.rename(cycle_loop.RESULTS_PATH, str(archive_path))
+                    logger.info('archived prior results to %s', archive_path)
                 except OSError as e:
-                    logger.warning('could not rotate %s: %s; truncating',
+                    logger.warning('could not archive %s: %s; truncating',
                                    cycle_loop.RESULTS_PATH, e)
                     open(cycle_loop.RESULTS_PATH, 'w').close()
 
