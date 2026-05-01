@@ -54,7 +54,7 @@ TestHandler: {
 # If the host is unreachable each cycle records env_start/env_end = {error: ...}
 # and the test continues.
 ChamberBroker:
-  host: "128.186.110.114"
+  host: "128.186.110.91"
   port: 5560
   timeout_ms: 2000
 
