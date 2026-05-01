@@ -39,20 +39,31 @@ PhysicalTest: []
 # }
 
 TestHandler: {
-  name: Thermal, 
-  localip: "localhost", 
-  remoteip: "128.186.110.147", 
-  username: "test_server", 
-  serverpath: <serverpath>, 
+  name: Thermal,
+  localip: "localhost",
+  remoteip: "128.186.110.147",
+  username: "test_server",
+  serverpath: <serverpath>,
   serverscript: <serverscript>
   }
+
+
+# Chamber broker — env_broker.py started by the chamber-control script
+# (start_test.py / auto_ramp.py) on the Alma host. cycle_loop.py queries
+# this on every power-on / power-off to log temp + humidity.
+# If the host is unreachable each cycle records env_start/env_end = {error: ...}
+# and the test continues.
+ChamberBroker:
+  host: "128.186.110.114"
+  port: 5560
+  timeout_ms: 2000
 
 
 # Information for sending and receiving data to/from the database
 # Needs to be different based on board type
 
 # TODO To be updated with new DB info
-DBInfo: 
+DBInfo:
   use_database: true
   baseURL: "http://128.186.110.91/Factory/mbDB"
 ...

@@ -383,7 +383,15 @@ class ThermalTestFinalResultsScene(ttk.Frame):
         self.update_frame(self.parent)
 
     def upload_site_result(self, db_url, site_name, site_data, tester):
-        """Upload a single site's thermal cycling result to the motherboard DB."""
+        """Upload a single site's thermal cycling result to the motherboard DB.
+
+        attach1 = aggregate JSON (pass/fail counts + criteria).
+        attach2 = the full per-cycle ndjson log written by cycle_loop on the
+                  Pi, including env_start/env_end chamber readings. The same
+                  bytes are uploaded once per site so each DB row is
+                  self-contained."""
+        from pathlib import Path
+        results_path = Path.home() / 'thermal_cycle_results.json'
         try:
             full_id = site_data.get('full_id')
             if not full_id:
@@ -407,8 +415,21 @@ class ThermalTestFinalResultsScene(ttk.Frame):
             attach_json = json.dumps(attachment)
             url = '{}/add_test_json.py'.format(db_url)
             logger.info("Uploading %s (%s) to %s", site_name, full_id, url)
-            r = requests.post(url, data=post_data, files={'attach1': attach_json})
-            logger.info("DB response for %s: %s", site_name, r.text[:200])
+            files = {'attach1': ('aggregate.json', attach_json, 'application/json')}
+            log_fp = None
+            try:
+                log_fp = open(str(results_path), 'rb')
+                files['attach2'] = ('thermal_cycle_results.json', log_fp,
+                                    'application/json')
+            except FileNotFoundError:
+                logger.warning("Local results file %s not found; uploading aggregate only",
+                               results_path)
+            try:
+                r = requests.post(url, data=post_data, files=files)
+                logger.info("DB response for %s: %s", site_name, r.text[:200])
+            finally:
+                if log_fp is not None:
+                    log_fp.close()
         except Exception as e:
             logger.error("Failed to upload %s to DB: %s", site_name, e)
 

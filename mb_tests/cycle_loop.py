@@ -26,6 +26,7 @@ from pathlib import Path
 
 import zmq
 
+import chamber_client
 from power_manager import PowerManager
 
 logger = logging.getLogger('HGCALTestGUI.mb_tests.cycle_loop')
@@ -87,10 +88,17 @@ def _runBatch_zcu(remote_ip, iengines, tester, n_cycles):
 
 
 def run(remote_ip, selected_sites, runtime_m, tester,
-        results_path=None, cycles_per_restart=None, gui_pid=None):
+        results_path=None, cycles_per_restart=None, gui_pid=None,
+        chamber_host=None, chamber_port=chamber_client.DEFAULT_PORT,
+        chamber_timeout_ms=chamber_client.DEFAULT_TIMEOUT_MS):
     results_path = results_path or RESULTS_PATH
     n_cycles = cycles_per_restart if cycles_per_restart is not None else CYCLES_PER_RESTART
     Path(results_path).parent.mkdir(exist_ok=True, parents=True)
+
+    def _read_env():
+        if not chamber_host:
+            return {'error': 'chamber_host_not_configured'}
+        return chamber_client.get_reading(chamber_host, chamber_port, chamber_timeout_ms)
 
     pm = PowerManager()
     stopped = {'flag': False}
@@ -117,7 +125,9 @@ def run(remote_ip, selected_sites, runtime_m, tester,
             t0 = datetime.now()
 
             pm.power_on(selected_sites)   # power_on settles 1.5s internally
+            env_start = _read_env()
             batch_res = _runBatch_zcu(remote_ip, selected_sites, tester, n_cycles)
+            env_end = _read_env()
             pm.power_off(selected_sites)
 
             cycles = []
@@ -126,13 +136,18 @@ def run(remote_ip, selected_sites, runtime_m, tester,
                 total_cycles += len(cycles)
 
             # Write one record per test cycle so status_poll/analyze_cycle see
-            # the same per-cycle shape as before.
+            # the same per-cycle shape as before. env_start/env_end bracket
+            # the entire power-on window; with N>1 every inner cycle in the
+            # batch shares the same pair (the chamber moves slowly relative
+            # to a single power-on duration).
             with open(results_path, 'a') as f:
                 for idx, cycle in enumerate(cycles):
                     entry = {
                         'batch': batch_count,
                         'cycle_in_batch': idx + 1,
                         'ts': t0.isoformat(),
+                        'env_start': env_start,
+                        'env_end': env_end,
                         'results': cycle,
                     }
                     f.write(json.dumps(entry) + '\n')
@@ -141,6 +156,8 @@ def run(remote_ip, selected_sites, runtime_m, tester,
                     f.write(json.dumps({
                         'batch': batch_count,
                         'ts': t0.isoformat(),
+                        'env_start': env_start,
+                        'env_end': env_end,
                         'results': {'error': err},
                     }) + '\n')
 

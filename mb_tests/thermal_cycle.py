@@ -14,6 +14,7 @@ import json
 import logging
 import multiprocessing as mp
 import os
+from datetime import datetime
 
 import cycle_loop
 
@@ -61,6 +62,12 @@ class Test():
     def __init__(self, conn_test, gui_cfg, sites=None, tester=None):
         self.conn = conn_test
         remote_ip = gui_cfg["TestHandler"]["remoteip"]
+        chamber_cfg = gui_cfg.get("ChamberBroker", {}) or {}
+        chamber_host = chamber_cfg.get("host")
+        chamber_port = int(chamber_cfg.get("port", 5560))
+        chamber_timeout_ms = int(chamber_cfg.get("timeout_ms", 2000))
+        if not chamber_host:
+            logger.warning('ChamberBroker.host not configured; per-cycle env will be null')
         selected = [naming_scheme[i] for i, s in enumerate(sites or []) if s]
 
         site_map = {}
@@ -74,15 +81,33 @@ class Test():
                     os.remove(cycle_loop.STOP_FLAG)
                 except OSError:
                     pass
-            # Start a fresh results file so status_poll only sees this run.
-            open(cycle_loop.RESULTS_PATH, 'w').close()
+            # Rotate any prior run's results file so this run starts fresh
+            # but the previous campaign's data remains accessible on disk
+            # (the DB attachment for that campaign should already mirror it).
+            if os.path.exists(cycle_loop.RESULTS_PATH):
+                try:
+                    rotated = '{}.{}'.format(
+                        cycle_loop.RESULTS_PATH,
+                        datetime.now().strftime('%Y%m%d-%H%M%S'),
+                    )
+                    os.rename(cycle_loop.RESULTS_PATH, rotated)
+                    logger.info('rotated prior results to %s', rotated)
+                except OSError as e:
+                    logger.warning('could not rotate %s: %s; truncating',
+                                   cycle_loop.RESULTS_PATH, e)
+                    open(cycle_loop.RESULTS_PATH, 'w').close()
 
             gui_pid = _find_gui_pid()
             logger.info('capturing GUI pid=%s for crash-teardown check', gui_pid)
             p = mp.Process(
                 target=cycle_loop.run,
                 args=(remote_ip, selected, RUNTIME_M, tester),
-                kwargs={'gui_pid': gui_pid},
+                kwargs={
+                    'gui_pid': gui_pid,
+                    'chamber_host': chamber_host,
+                    'chamber_port': chamber_port,
+                    'chamber_timeout_ms': chamber_timeout_ms,
+                },
                 daemon=False,
             )
             p.start()
