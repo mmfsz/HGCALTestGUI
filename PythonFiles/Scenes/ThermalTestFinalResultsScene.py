@@ -386,10 +386,11 @@ class ThermalTestFinalResultsScene(ttk.Frame):
         """Upload a single site's thermal cycling result to the motherboard DB.
 
         attach1 = aggregate JSON (pass/fail counts + criteria).
-        attach2 = the full per-cycle ndjson log written by cycle_loop on the
-                  Pi, including env_start/env_end chamber readings. The same
-                  bytes are uploaded once per site so each DB row is
-                  self-contained."""
+        attach2 = the full per-cycle log, parsed from the local ndjson file
+                  and re-serialized as a single JSON document
+                  ({"cycles": [...]}). The DB CGI get_attach.py expects
+                  attachments to be parseable by json.loads, so we cannot
+                  upload ndjson verbatim."""
         from pathlib import Path
         results_path = Path.home() / 'thermal_cycle_results.json'
         try:
@@ -416,20 +417,25 @@ class ThermalTestFinalResultsScene(ttk.Frame):
             url = '{}/add_test_json.py'.format(db_url)
             logger.info("Uploading %s (%s) to %s", site_name, full_id, url)
             files = {'attach1': ('aggregate.json', attach_json, 'application/json')}
-            log_fp = None
             try:
-                log_fp = open(str(results_path), 'rb')
-                files['attach2'] = ('thermal_cycle_results.json', log_fp,
+                cycles = []
+                with open(str(results_path)) as f:
+                    for line in f:
+                        line = line.strip()
+                        if not line:
+                            continue
+                        try:
+                            cycles.append(json.loads(line))
+                        except ValueError:
+                            logger.warning("Skipping malformed line in %s", results_path)
+                cycle_log_json = json.dumps({'cycles': cycles})
+                files['attach2'] = ('thermal_cycle_results.json', cycle_log_json,
                                     'application/json')
             except FileNotFoundError:
                 logger.warning("Local results file %s not found; uploading aggregate only",
                                results_path)
-            try:
-                r = requests.post(url, data=post_data, files=files)
-                logger.info("DB response for %s: %s", site_name, r.text[:200])
-            finally:
-                if log_fp is not None:
-                    log_fp.close()
+            r = requests.post(url, data=post_data, files=files)
+            logger.info("DB response for %s: %s", site_name, r.text[:200])
         except Exception as e:
             logger.error("Failed to upload %s to DB: %s", site_name, e)
 
