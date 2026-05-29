@@ -1,7 +1,7 @@
 ---
 DBInfo:
   admin: FactoryInserter
-  baseURL: http://128.186.110.114/Factory/mbDB
+  baseURL: http://phy-k619lf-a.hep.fsu.edu/Factory/mbDB
   inserter: FactoryInserter
   name: mbdb
   reader: FactoryReadUser
