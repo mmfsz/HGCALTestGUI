@@ -1,7 +1,7 @@
 ---
 DBInfo:
   admin: FactoryInserter
-  baseURL: http://128.186.110.131/Factory/mbDB
+  baseURL: http://phy-k619lf-a.hep.fsu.edu/Factory/mbDB
   inserter: FactoryInserter
   name: mbdb
   reader: FactoryReadUser
@@ -24,7 +24,7 @@ PowerSupply: {
   method: Local,
   required: 1
   },
-setup_lpgbts: {
+SetuplpGBTs: {
   TestClass: MBTestSetupLpgbts,
   TestPath: /home/HGCAL_dev/scintmbdev/hgc-engine-tools/mb_tests,
   TestScript: test_startup.py,
@@ -44,7 +44,7 @@ lpGBTID: {
   method: ZMQ,
   required: 1
   },
-eye_opening: {
+EyeOpening: {
   TestClass: MBTestEyeOpening,
   TestPath: /home/HGCAL_dev/scintmbdev/hgc-engine-tools/mb_tests,
   TestScript: test_links.py,
@@ -54,7 +54,7 @@ eye_opening: {
   method: ZMQ,
   required: 1
   },
-setup_econs: {
+SetupECONs: {
   TestClass: MBTestSetupECONs,
   TestPath: /home/HGCAL_dev/scintmbdev/hgc-engine-tools/mb_tests,
   TestScript: test_startup.py,
@@ -64,7 +64,7 @@ setup_econs: {
   method: ZMQ,
   required: 1
   },
-clock_rates: {
+ClockRates: {
   TestClass: MBTestEClockRates,
   TestPath: /home/HGCAL_dev/scintmbdev/hgc-engine-tools/mb_tests,
   TestScript: test_links.py,
@@ -74,7 +74,7 @@ clock_rates: {
   method: ZMQ,
   required: 1
   },
-internal_i2c: {
+InternalI2C: {
   TestClass: MBTestI2C,
   TestPath: /home/HGCAL_dev/scintmbdev/hgc-engine-tools/mb_tests,
   TestScript: test_i2c.py,
@@ -84,7 +84,7 @@ internal_i2c: {
   method: ZMQ,
   required: 1
   },
-adc: {
+ADCfunctionality: {
   TestClass: MBTestAdc,
   TestPath: /home/HGCAL_dev/scintmbdev/hgc-engine-tools/mb_tests,
   TestScript: test_adc.py,
@@ -94,7 +94,7 @@ adc: {
   method: ZMQ,
   required: 1
   },
-gpio: {
+GPIOfunctionality: {
   TestClass: MBTestGpio,
   TestPath: /home/HGCAL_dev/scintmbdev/hgc-engine-tools/mb_tests,
   TestScript: test_gpio.py,
@@ -104,7 +104,7 @@ gpio: {
   method: ZMQ,
   required: 1
   },
-led: {
+LEDMonitoring: {
   TestClass: MBTestLED,
   TestPath: /home/HGCAL_dev/scintmbdev/hgc-engine-tools/mb_tests,
   TestScript: test_adc.py,
@@ -114,7 +114,7 @@ led: {
   method: ZMQ,
   required: 1
   },
-fast_control: {
+FastControlPRBS: {
   TestClass: MBTestFC,
   TestPath: /home/HGCAL_dev/scintmbdev/hgc-engine-tools/mb_tests,
   TestScript: test_links.py,
@@ -124,7 +124,7 @@ fast_control: {
   method: ZMQ,
   required: 1
   },
-sca_uplink: {
+SCAUplinkPRBS: {
   TestClass: MBTestSCAUplink,
   TestPath: /home/HGCAL_dev/scintmbdev/hgc-engine-tools/mb_tests,
   TestScript: test_links.py,
@@ -134,7 +134,7 @@ sca_uplink: {
   method: ZMQ,
   required: 1
   },
-sca_downlink: {
+SCADownlinkPRBS: {
   TestClass: MBTestSCADownlink,
   TestPath: /home/HGCAL_dev/scintmbdev/hgc-engine-tools/mb_tests,
   TestScript: test_links.py,
@@ -144,7 +144,7 @@ sca_downlink: {
   method: ZMQ,
   required: 1
   },
-econ_tx_prbs: {
+ECONTxPRBS: {
   TestClass: MBTestEPortRxScan,
   TestPath: /home/HGCAL_dev/scintmbdev/hgc-engine-tools/mb_tests,
   TestScript: test_econ_tx_prbs.py,
@@ -154,7 +154,7 @@ econ_tx_prbs: {
   method: ZMQ,
   required: 1
   },
-econ_rx_prbs: {
+ECONRxPRBS: {
   TestClass: MBTestEconRxPRBS,
   TestPath: /home/HGCAL_dev/scintmbdev/hgc-engine-tools/mb_tests,
   TestScript: test_econ_rx_prbs.py,

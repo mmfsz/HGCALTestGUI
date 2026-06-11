@@ -94,7 +94,11 @@ class DBSender():
     # Whether or not DB has passing results 
     def get_previous_test_results(self, full_id):
    
-        r = requests.post('{}/get_previous_test_results.py'.format(self.db_url), data={'full_id': str(full_id)})
+        try:
+            r = requests.post('{}/get_previous_test_results.py'.format(self.db_url), data={'full_id': str(full_id)}, timeout=10)
+        except requests.exceptions.RequestException as e:
+            logger.error("get_previous_test_results.py request failed (%s); treating board as having no prior results.", e)
+            return [], []
         lines = r.text.split('\n')
 
         try:
@@ -104,9 +108,10 @@ class DBSender():
             end2 = lines.index("End2")
             begin3 = lines.index("Begin3") + 1
             end3 = lines.index("End3")
-        except:
-            logger.error("There was an issue with the web API script `get_previous_test_results.py`. There is likely a syntax error in an associated web API script.")
+        except ValueError:
+            logger.error("There was an issue with the web API script `get_previous_test_results.py` (no Begin/End markers in response); treating board as having no prior results.")
             logger.debug(r.text)
+            return [], []
 
         tests_run = []
         outcomes = []
