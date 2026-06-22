@@ -51,18 +51,27 @@ class SidebarScene(ttk.Frame):
         sidebar_frame.grid_columnconfigure(0, weight=1)
         sidebar_frame.grid_rowconfigure(0, weight=1)
 
+        # Let the canvas (column 0) grow/shrink with the window so its viewport
+        # actually changes size. Without this the canvas keeps its fixed 850px
+        # height and the overflow is simply clipped instead of scrollable.
+        self.grid_columnconfigure(0, weight=1)
+        self.grid_rowconfigure(0, weight=1)
+
         #background="#808080"
 
-        self.mycanvas.grid(row=0, column=0, sticky="ns") 
-        self.scroller.grid(row=0, column=1, sticky="nsw")
+        self.mycanvas.grid(row=0, column=0, sticky="nsew")
+        self.scroller.grid(row=0, column=1, sticky="ns")
 
         self.canvas_window = self.mycanvas.create_window((0, 0), window=self.viewingFrame, anchor='nw', tags="self.viewingFrame")
-        self.viewingFrame.pack(fill='y', expand=True, side='left')
-        
+
+        # Keep the scroll region in sync with the inner frame's real size.
+        # This must NOT pack/place the viewingFrame into the canvas - it is
+        # already positioned by create_window above. Packing it as well pins
+        # it to the viewport and the scrollbar/yview can no longer move it.
+        self.viewingFrame.bind('<Configure>', self.onFrameConfigure)
+
         self.viewingFrame.bind('<Enter>', self.onEnter)
         self.viewingFrame.bind('<Leave>', self.onLeave)
-
-        #self.onFrameConfigure(None)
 
         self.data_holder = data_holder
 
@@ -249,24 +258,35 @@ class SidebarScene(ttk.Frame):
                 RedX_Label.image = self.Red_X_PhotoImage
 
                 RedX_Label.grid(row=index + original_offset, column=1, padx = btn_padx)
- 
+
+        # The buttons were just rebuilt, so recompute the scrollable area.
+        # bbox("all") is only correct after the geometry manager has run, so
+        # do it after the pending idle tasks have laid the buttons out.
+        self.viewingFrame.update_idletasks()
+        self.onFrameConfigure()
+
 
     #################################################
 
+    def onFrameConfigure(self, event=None):
+        '''Reset the scroll region to encompass the inner frame.'''
+        self.mycanvas.configure(scrollregion=self.mycanvas.bbox("all"))
 
     def onMouseWheel(self, event):                                                  # cross platform scroll wheel event
-        if event.num == 4:
-            self.mycanvas.yview_scroll( -1, "units" )
-        elif event.num == 5:
+        if event.num == 5 or event.delta < 0:
             self.mycanvas.yview_scroll( 1, "units" )
-    
+        elif event.num == 4 or event.delta > 0:
+            self.mycanvas.yview_scroll( -1, "units" )
+
     def onEnter(self, event):                                                       # bind wheel events when the cursor enters the control
         self.mycanvas.bind_all("<Button-4>", self.onMouseWheel)
         self.mycanvas.bind_all("<Button-5>", self.onMouseWheel)
+        self.mycanvas.bind_all("<MouseWheel>", self.onMouseWheel)                   # Windows / macOS
 
     def onLeave(self, event):                                                       # unbind wheel events when the cursorl leaves the control
         self.mycanvas.unbind_all("<Button-4>")
         self.mycanvas.unbind_all("<Button-5>")
+        self.mycanvas.unbind_all("<MouseWheel>")
 
 
 
