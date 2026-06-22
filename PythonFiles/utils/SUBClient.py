@@ -4,6 +4,8 @@ import PythonFiles
 import os
 import multiprocessing as mp
 
+from PythonFiles.utils.helper import install_parent_death_watchdog
+
 logger = logging.getLogger('HGCALTestGUI.PythonFiles.utils.SUBClient')
 
 
@@ -123,16 +125,23 @@ class SUBClient():
 
 
 def _local(conn, queue, gui_cfg, q):
+    install_parent_death_watchdog()
     try:
         while 1 > 0:
             # gets the signal from the Handler and splits it into topic and message
             # the topic determines what SUBClient will do with the message
             try:
                 signal = q.get()
+            except (EOFError, OSError):
+                # The queue's pipe is gone (the parent process has exited).
+                # Stop instead of busy-looping on the broken queue.
+                logger.info("SUBClient: input queue closed; exiting local listener.")
+                break
+            try:
                 topic, message = signal.split(" ; ")
-            except Exception as e:
-                logger.error("SUBClient: There was an error trying to get the topic and/or message from the socket") 
-                logger.exception(e) 
+            except (ValueError, AttributeError):
+                logger.error("SUBClient: malformed message, skipping: %r", signal)
+                continue
 
             # Tests what topic was received and then does the appropriate code accordingly
             if topic == "print":
@@ -163,6 +172,7 @@ def _local(conn, queue, gui_cfg, q):
 
 # Responsible for listening for ZMQ messages from teststand
 def _SUB_ZMQ(conn, queue, gui_cfg):
+    install_parent_death_watchdog()
     grabbed_ip = gui_cfg["TestHandler"]["remoteip"]
     # Creates the zmq.Context object
     cxt = zmq.Context()
@@ -179,14 +189,17 @@ def _SUB_ZMQ(conn, queue, gui_cfg):
             # the space around the semi-colon is necessary otherwise the topic and messaage
             # will have extra spaces.
             try:
-                topic, message = listen_socket.recv_string().split(" ; ")
-            except Exception as e:
-                logger.error("SUBClient: There was an error trying to get the topic and/or message from the socket")
-                logger.exception(e)
-                                    
-
-            poller = zmq.Poller()
-            poller.register(listen_socket, zmq.POLLIN)
+                raw = listen_socket.recv_string()
+            except zmq.ZMQError:
+                # Socket/context was closed (e.g. on shutdown). Stop instead of
+                # busy-looping on the dead socket.
+                logger.info("SUBClient: ZMQ socket closed; exiting ZMQ listener.")
+                break
+            try:
+                topic, message = raw.split(" ; ")
+            except ValueError:
+                logger.error("SUBClient: malformed ZMQ message, skipping: %r", raw)
+                continue
 
             # Tests what topic was received and then does the appropriate code accordingly
             if topic == "print":

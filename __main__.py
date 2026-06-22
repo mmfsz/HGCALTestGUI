@@ -4,7 +4,7 @@
 import os
 import psutil
 from pathlib import Path
-from PythonFiles.utils.helper import get_logging_path
+from PythonFiles.utils.helper import get_logging_path, install_parent_death_watchdog
 
 guiLogPath = "{}".format(get_logging_path())
 guiLogDir = "/".join(guiLogPath.split("/")[:-1])
@@ -79,6 +79,7 @@ sys.excepthook = handle_exception
 # Creates a task of creating the GUIWindow
 def task_GUI(conn, conn_trigger, queue, board_cfg, curpath):
     # creates the main_window as an instantiation of GUIWindow
+    install_parent_death_watchdog()
     try:
         main_window = GUIWindow(conn, conn_trigger, queue, board_cfg, curpath)
     except Exception:
@@ -88,6 +89,7 @@ def task_GUI(conn, conn_trigger, queue, board_cfg, curpath):
 # Creates a task of creating the SUBClient
 def task_SUBClient(conn, queue, board_cfg, sub_pipe):
     # Creates the SUBSCRIBE Socket Client
+    install_parent_death_watchdog()
     try:
         sub_client = SUBClient(conn, queue, board_cfg, sub_pipe)
     except Exception:
@@ -98,6 +100,7 @@ def task_SUBClient(conn, queue, board_cfg, sub_pipe):
 # Function to create the handler of the type specified in the config file
 def task_LocalHandler(gui_cfg, conn_trigger, local_pipe):
 
+    install_parent_death_watchdog()
     try:
         LocalHandler(gui_cfg, conn_trigger, local_pipe)
     except Exception:
@@ -106,6 +109,7 @@ def task_LocalHandler(gui_cfg, conn_trigger, local_pipe):
 
 def task_SSHHandler(gui_cfg, host_cfg, conn_trigger, queue):
 
+    install_parent_death_watchdog()
     try:
         SSHHandler(gui_cfg, host_cfg, conn_trigger, queue)
     except Exception:
@@ -117,14 +121,28 @@ def kill_processes_and_children(pid):
         parent = psutil.Process(pid)
     except psutil.NoSuchProcess:
         return
-    for child in parent.children(recursive=True):
+
+    # Terminate the whole tree (children first, then the parent itself).
+    procs = parent.children(recursive=True)
+    procs.append(parent)
+    for p in procs:
         try:
-            child.terminate()
+            p.terminate()
         except psutil.NoSuchProcess:
             pass
-        parent.terminate()
 
-def run(board_cfg, curpath, host_cfg):    
+    # Give them a moment to exit gracefully, then hard-kill any survivors.
+    gone, alive = psutil.wait_procs(procs, timeout=3)
+    for p in alive:
+        try:
+            p.kill()
+        except psutil.NoSuchProcess:
+            pass
+
+def run(board_cfg, curpath, host_cfg):
+
+    # Some handler modes (e.g. ZMQ-only) never create a Handler process.
+    process_Handler = None
 
     # Creates a Pipe for the SUBClient to talk to the GUI Window
     conn_SUB, conn_GUI = mp.Pipe()
@@ -182,14 +200,16 @@ def run(board_cfg, curpath, host_cfg):
     except:
         logger.debug("Pipe close is unnecessary.")
 
-    try:
-        # Cleans up the SUBClient process
-        #process_SUBClient.terminate()
-        kill_processes_and_children(process_SUBClient.pid)
-        process_Handler.terminate()
-    except:
-        logger.debug("Terminate is unnecessary.")
-        pass
+    # Clean up every spawned process tree. psutil is cross-platform, so this
+    # works the same on Linux and Windows. Any process that already exited is
+    # simply skipped.
+    for proc in (process_GUI, process_Handler, process_SUBClient):
+        if proc is None:
+            continue
+        try:
+            kill_processes_and_children(proc.pid)
+        except Exception:
+            logger.debug("Process tree cleanup unnecessary for pid.")
 
 
 def import_yaml(config_path):

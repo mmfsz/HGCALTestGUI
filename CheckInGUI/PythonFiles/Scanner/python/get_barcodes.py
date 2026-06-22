@@ -52,6 +52,9 @@ def get_serial_port():
 
 def scan_from_serial(serial_list, stop_flag):
     port = get_serial_port()
+    if port is None:
+        logger.warning("Scanner not connected; skipping serial scan.")
+        return
     try:
         with serial.Serial(port, 9600, timeout=0.1) as ser:
 

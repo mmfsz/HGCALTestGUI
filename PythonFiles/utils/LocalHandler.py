@@ -1,6 +1,8 @@
 import multiprocessing as mp
 import zmq, sys, os, signal, logging, json
 
+from PythonFiles.utils.helper import install_parent_death_watchdog
+
 sys.path.append("{}".format(os.getcwd()))
 
 # Class needed for bridging the gap between request, running test
@@ -63,30 +65,41 @@ class LocalHandler:
 
 def task_local(conn, q):
     # listens for incoming data and attaches the correct topic before sending it on to SUBClient
-    #try:
+    install_parent_death_watchdog()
     while 1 > 0:
-        prints = conn.recv()
+        try:
+            prints = conn.recv()
+        except (EOFError, OSError):
+            # The pipe is gone (parent process exited). Stop instead of crashing
+            # or busy-looping.
+            logger.info("LocalHandler: pipe closed; exiting PUB listener.")
+            break
         if "Done." in prints:
             prints = 'print ; ' + str(prints)
             q.put(prints)
 
-            json = conn.recv()
+            try:
+                json = conn.recv()
+            except (EOFError, OSError):
+                break
             json = 'JSON ; ' + str(json)
             q.put(str(json))
             break
         else:
             prints = 'print ; ' + str(prints)
             q.put(prints)
-        
+
     logger.info("LocalHandler: Loop has been broken.")
     #except:
     #    logging.critical("Local server has crashed.")
 
 
 
-def task_test(conn_test, gui_cfg, desired_test, test_info):   
+def task_test(conn_test, gui_cfg, desired_test, test_info):
 
-    # Dynamically import test class 
+    install_parent_death_watchdog()
+
+    # Dynamically import test class
     test_meta = gui_cfg["Test"][desired_test]
     # Need to strip .py from test script for import
     # TestClass is the name of the class defined in the test script

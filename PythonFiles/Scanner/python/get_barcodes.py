@@ -9,6 +9,8 @@ import serial
 from serial.tools import list_ports
 import time
 
+from PythonFiles.utils.helper import install_parent_death_watchdog
+
 logger = logging.getLogger('HGCALTestGUI.PythonFiles.Scanner.python.get_barcodes')
 
 from multiprocessing import Process, Manager, Pipe
@@ -51,7 +53,11 @@ def get_serial_port():
     return None
 
 def scan_from_serial(serial_list, stop_flag):
+    install_parent_death_watchdog()
     port = get_serial_port()
+    if port is None:
+        logger.warning("Scanner not connected; skipping serial scan.")
+        return
     try:
         with serial.Serial(port, 9600, timeout=0.1) as ser:
 

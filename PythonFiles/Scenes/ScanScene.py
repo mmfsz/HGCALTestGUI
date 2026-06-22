@@ -36,6 +36,11 @@ class ScanScene(ttk.Frame):
 
         self.use_scanner = self.data_holder.get_use_scanner()
 
+        # Scanner subprocess + its Manager; populated while a scan is running.
+        self.listener = None
+        self.manager = None
+        self.stop_flag = None
+
         self.is_current_scene = False
         
         self.EXIT_CODE = 0
@@ -81,16 +86,20 @@ class ScanScene(ttk.Frame):
 
             from ..Scanner.python.get_barcodes import scan_from_serial
 
-            manager = mp.Manager()
-            full_id = manager.list()
-            stop_flag = mp.Event()
+            # Tear down any leftover scan resources from a previous (re)scan so
+            # we don't leak a Manager process every time we scan a board.
+            self._cleanup_scan()
+
+            self.manager = mp.Manager()
+            full_id = self.manager.list()
+            self.stop_flag = mp.Event()
 
             self.ent_full.config(state = 'normal')
 
-            self.listener = mp.Process(target=scan_from_serial, args=(full_id, stop_flag))
+            self.listener = mp.Process(target=scan_from_serial, args=(full_id, self.stop_flag))
 
             self.listener.start()
-                
+
             while 1 > 0:
 
                 try:
@@ -100,9 +109,8 @@ class ScanScene(ttk.Frame):
                 if not len(full_id) == 0:
                     label = full_id[0]
 
-                    stop_flag.set()
-                    self.listener.terminate()
-                
+                    self._cleanup_scan()
+
                     self.ent_full.delete(0,END)
                     self.ent_full.insert(0, str(label))
                     self.ent_full.config(state = 'disabled')
@@ -111,12 +119,38 @@ class ScanScene(ttk.Frame):
 
                 elif self.EXIT_CODE:
                     logger.info("Exit code received on the ScanScene. Terminating processes.")
-                    stop_flag.set()
-                    self.listener.terminate()
+                    self._cleanup_scan()
                     logger.info("ScanScene processes terminated successfully.")
                     break
                 else:
                     time.sleep(.01)
+
+    #################################################
+
+    # Terminates the scanner listener subprocess and shuts down its Manager
+    # process. Safe to call when nothing is running (used for scan completion,
+    # rescans, logout and exit).
+    def _cleanup_scan(self):
+        try:
+            if self.stop_flag is not None:
+                self.stop_flag.set()
+        except Exception:
+            pass
+        try:
+            if self.listener is not None:
+                self.listener.terminate()
+        except Exception:
+            pass
+        finally:
+            self.listener = None
+        try:
+            if self.manager is not None:
+                self.manager.shutdown()
+        except Exception:
+            pass
+        finally:
+            self.manager = None
+            self.stop_flag = None
 
     # Creates the GUI itself
     def initialize_GUI(self, parent, master_frame):
@@ -313,14 +347,13 @@ class ScanScene(ttk.Frame):
     # Function for the log out button
     def btn_logout_action(self, _parent):
 
-        self.EXIT_CODE = 1 
-        
+        self.EXIT_CODE = 1
+
         if self.use_scanner:
-            self.listener.terminate()
-            self.scanner.terminate()
+            self._cleanup_scan()
 
          # Send user back to login frame
-        _parent.set_frame_login_frame() 
+        _parent.set_frame_login_frame()
 
         self.EXIT_CODE = 0
 
@@ -374,10 +407,9 @@ class ScanScene(ttk.Frame):
         
     def kill_processes(self):
         logger.info("Terminating scanner processes.")
+        self.EXIT_CODE = 1
         try:
             if self.use_scanner:
-                self.scanner.kill()
-                self.listener.terminate()
-            self.EXIT_CODE = 1
-        except:
+                self._cleanup_scan()
+        except Exception:
             logger.info("Processes could not be terminated.")
