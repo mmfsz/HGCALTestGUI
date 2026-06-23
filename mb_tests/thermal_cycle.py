@@ -51,9 +51,8 @@ naming_scheme = [
     "D1", "D2", "D3", "D4",
 ]
 
-# Production runtime; set low for debug.
-#RUNTIME_M = 240
-RUNTIME_M = 0.5  # DEBUG: 30 seconds
+# Production runtime (minutes).
+RUNTIME_M = 120  # 2 h
 
 PID_FILE = '/tmp/hgcal_thermal.pid'
 

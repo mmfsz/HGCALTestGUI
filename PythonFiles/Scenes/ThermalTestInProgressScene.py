@@ -117,8 +117,7 @@ class ThermalTestInProgressScene(ttk.Frame):
 
         # Clear and start the countdown from 2 hours (7200 seconds)
         self.cancel_timer()
-        # self.remaining_time = 7200
-        self.remaining_time = 30  # DEBUG: 30s to match cycle_loop RUNTIME_M=0.5
+        self.remaining_time = 7200
         self.update_timer()
 
 
@@ -235,7 +234,7 @@ class ThermalTestInProgressScene(ttk.Frame):
         self._poll_start_time = time.time()
         self.console_print("Thermal cycling started. Polling ZCU for status every 5 minutes...\n")
         # First poll after 10 seconds, then every 5 minutes
-        self._poll_id = self.after(10000, self.poll_status)
+        self._poll_id = self.after(300000, self.poll_status)
 
     def stop_polling(self):
         if self._poll_id:
@@ -267,8 +266,7 @@ class ThermalTestInProgressScene(ttk.Frame):
                 logger.info("Status received: %s", message)
                 self.display_status(message)
                 # Schedule next poll in 5 minutes
-                # self._poll_id = self.after(300000, self.poll_status)
-                self._poll_id = self.after(10000, self.poll_status)  # DEBUG: 10s to fit 30s run
+                self._poll_id = self.after(300000, self.poll_status)
                 return
         # Not ready yet, check again in 100ms
         self.after(100, self.wait_for_status)
