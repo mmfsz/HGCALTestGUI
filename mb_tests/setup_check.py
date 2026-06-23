@@ -20,7 +20,8 @@ STATES = {
     "excluded": ("__", "black"),
     "waiting": ("...", "lightgray"),
     "failed3": ("✖⚠", "maroon"),
-    "passed": ("✔⚠", "steelblue")
+    "passed": ("✔⚠", "steelblue"),
+    "no_db": ("DB✖", "darkviolet")
 }
 naming_scheme = [
                 "SFP0", "1", "2", "3",
@@ -89,11 +90,20 @@ class Test():
                     json.dump(existing, f, indent=2)
             else:
                 states = data  # legacy shape
+                full_ids_map = {}
 
             # Build output in the format the GUI expects: [["ready", 0], ["failure", 0], ...]
             for i, s in enumerate(sites):
                 if s:
-                    output.append([states[i], 0])
+                    st = states[i]
+                    # DB-miss: ZCU read the board ('ready') but its lpGBT has no
+                    # registered full_id (normalized to None above), so its thermal-
+                    # cycle result can't be uploaded. Flag distinctly so the operator
+                    # does not waste a cycle run on an unuploadable board.
+                    _e = full_ids_map.get(naming_scheme[i])
+                    if st == 'ready' and (not _e or _e.get('full_id') is None):
+                        st = 'no_db'
+                    output.append([st, 0])
                 else:
                     output.append(["excluded", -1])
         else:

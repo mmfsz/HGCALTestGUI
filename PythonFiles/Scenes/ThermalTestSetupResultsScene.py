@@ -33,7 +33,8 @@ STATES = {
     "excluded": ("__", "black"),
     "waiting": ("...", "lightgray"),
     "failed3": ("✖⚠", "maroon"),
-    "passed": ("✔⚠", "steelblue")
+    "passed": ("✔⚠", "steelblue"),
+    "no_db": ("DB✖", "darkviolet")
 }
 
 # Creating class for the window
@@ -423,6 +424,19 @@ class ThermalTestSetupResultsScene(ttk.Frame):
                 self.failures[i] = ' '
             else:
                 self.failures[i] = state_list[i][1]
+
+        # Flag boards whose lpGBT is not registered in the DB: they read fine but
+        # their thermal-cycle result can't be uploaded. Warn so the operator can
+        # register the lpGBT or deselect them before wasting a cycle run.
+        missing = [self.naming_scheme[i]
+                   for i in range(min(len(state_list), len(self.checkbox_states)))
+                   if self.checkbox_states[i] == 'no_db']
+        if missing:
+            messagebox.showwarning(
+                "Boards not in database",
+                "Slot(s) {}: lpGBT not registered in the database - thermal-cycle "
+                "results for these CANNOT be uploaded.\n\n"
+                "Register the lpGBT or deselect them before cycling.".format(", ".join(missing)))
 
     
 
