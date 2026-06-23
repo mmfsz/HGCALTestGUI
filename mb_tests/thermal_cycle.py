@@ -13,6 +13,7 @@ can self-terminate when the GUI is gone.
 import json
 import logging
 import multiprocessing as mp
+from multiprocessing import process as mp_process
 import os
 from datetime import datetime
 from pathlib import Path
@@ -119,6 +120,16 @@ class Test():
                 daemon=False,
             )
             p.start()
+            # Detach from multiprocessing's child bookkeeping. A non-daemon
+            # child is normally joined by multiprocessing's atexit handler when
+            # THIS task_test subprocess returns — which would make
+            # LocalHandler.process_test.join() block for the entire cycle
+            # (RUNTIME_M), starving every follow-up trigger (status_poll,
+            # killCycle, power_off). Discarding p from the registry lets
+            # task_test exit immediately while cycle_loop keeps running,
+            # reparented to init. (daemon=True is not an option: the same
+            # atexit handler would *terminate* the loop instead.)
+            mp_process._children.discard(p)
             with open(PID_FILE, 'w') as f:
                 f.write(str(p.pid))
             logger.info('cycle_loop started as pid=%d for sites=%s', p.pid, selected)

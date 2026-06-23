@@ -233,8 +233,8 @@ class ThermalTestInProgressScene(ttk.Frame):
     def start_polling(self):
         self._poll_start_time = time.time()
         self.console_print("Thermal cycling started. Polling ZCU for status every 5 minutes...\n")
-        # First poll after 10 seconds, then every 5 minutes
-        self._poll_id = self.after(300000, self.poll_status)
+        # First poll after 1 minute (quick reassurance), then every 5 minutes
+        self._poll_id = self.after(60000, self.poll_status)
 
     def stop_polling(self):
         if self._poll_id:
