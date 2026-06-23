@@ -146,11 +146,17 @@ class ThermalTestSetupResultsScene(ttk.Frame):
 
         self.checkbox_labels = []
         self.checkbox_vars = []
+        # Only the usable chamber slots (1-9) are shown, in numerical order;
+        # unused inputs (SFP0/A3/A4/C*/D*) are created but never gridded -> hidden.
+        self.live_indices = [k for k, lbl in enumerate(self.naming_scheme) if lbl.isdigit()]
+        self.render_order = sorted(self.live_indices, key=lambda k: int(self.naming_scheme[k]))
 
         # Loop to create 20 visual checkboxes (2 columns, 10 rows)
         for i in range(20):
-            col = i // 4  # Determine column (0 or 1)
-            row = i % 4   # Determine row (0-9)
+            _live = i in self.render_order
+            _rank = self.render_order.index(i) if _live else -1
+            row = _rank % 5   # 5 slots per column
+            col = _rank // 5
 
             # Get the initial state from checkbox_states
             initial_state = self.checkbox_states[i]
@@ -165,14 +171,16 @@ class ThermalTestSetupResultsScene(ttk.Frame):
                 font=("Arial", 18),
                 padding=2
             )
-            state_label.grid(row=row, column=col * 2, padx=5, pady=2, sticky="w")
+            if _live:
+                state_label.grid(row=row, column=col * 2, padx=5, pady=2, sticky="w")
 
             text_label = ttk.Label(
                     checkbox_frame,
                     text=f"{self.naming_scheme[i]}:{self.failures[i]}",
                     font=("Arial", 18)
                 )
-            text_label.grid(row=row, column=col * 2 + 1, padx=10, pady=6, sticky="w")
+            if _live:
+                text_label.grid(row=row, column=col * 2 + 1, padx=10, pady=6, sticky="w")
 
             # Bind click event to toggle state
             state_label.bind("<Button-1>", lambda e, lbl=state_label, idx=i: self.toggle_state(lbl, idx))
@@ -208,8 +216,10 @@ class ThermalTestSetupResultsScene(ttk.Frame):
         adjustment_row_frame = ttk.Frame(frm_window)
         
         for i in range(20):
-            row = i % 4
-            col = i // 4
+            _live = i in self.render_order
+            _rank = self.render_order.index(i) if _live else -1
+            row = _rank % 5
+            col = _rank // 5
             adj_var = tk.BooleanVar()
             adj_var.set(self.adjustment_var[i])
             self.adjustment_var[i] = adj_var
@@ -220,7 +230,8 @@ class ThermalTestSetupResultsScene(ttk.Frame):
                 variable=adj_var,
                 command= lambda idx=i: self.adj_checkbox_action(idx)
             )
-            adj_checkbox.grid(row=row, column=col, padx=20, pady=5, sticky="w") 
+            if _live:
+                adj_checkbox.grid(row=row, column=col, padx=20, pady=5, sticky="w")
         adjustment_row_frame.pack(pady=10)
 
 
