@@ -48,13 +48,27 @@ class ThermalTestConfigScene(ttk.Frame):
                                 False, False, False, False,
                                 ]
         self.naming_scheme = [
-                                "SFP0", "SFP1", "SFP2", "SFP3",
-                                "A1", "A2", "A3", "A4",
-                                "B1", "B2", "B3", "B4",
+                                "SFP0", "1", "2", "3",
+                                "8", "9", "A3", "A4",
+                                "4", "5", "6", "7",
                                 "C1", "C2", "C3", "C4",
                                 "D1", "D2", "D3", "D4"
                             ]
-        
+
+        # FSU / cold stand, firmware zcu102-jon-10LD-SFP3 (2026-06-11):
+        # Only 9 links are live (LD_1..LD_9). The 20-slot data model above is kept
+        # INTACT on purpose — the ZCU's fullIDs returns a fixed 20-element states[]
+        # array and setup_check.py / power_manager.py / thermalcycler_mb.iengine_map
+        # all index by this position, so shrinking the list would misalign them.
+        # Instead we only RENDER the live sites below, so the dangerous/unwired
+        # boxes can never be selected. live_indices -> iengine -> LD:
+        #   SFP1->1->LD_1  SFP2->2->LD_2  SFP3->3->LD_3
+        #   B1->4->LD_4    B2->5->LD_5    B3->6->LD_6   B4->7->LD_7
+        #   A1->8->LD_8    A2->9->LD_9
+        # SFP0 is index 0 -> iengine 0 -> LD_0, the architectural hang: NEVER expose
+        # it (a stray click or Select-All would hang the PS and need a power cycle).
+        self.live_indices = [1, 2, 3, 4, 5, 8, 9, 10, 11]
+
         self.current_engine_selection = None
         
         self.update_frame(parent)
@@ -113,30 +127,31 @@ class ThermalTestConfigScene(ttk.Frame):
         checkbox_frame = ttk.Frame(frm_window)
         checkbox_frame.pack(pady=10)
 
-        # TODO (FSU) set this up for your ports
-        # Loop to create 20 checkboxes (5 columns and 4 rows)
+        # Keep a BooleanVar for all 20 positions so the data model / downstream
+        # index alignment is preserved, but only RENDER the live sites
+        # (self.live_indices) so SFP0 (LD_0 hang) and the unwired sites can never
+        # be checked. Non-rendered positions stay False forever.
+        # 2026-06-17: keep a BooleanVar for ALL 20 positions so the downstream
+        # 20-element model (bool_checkbox_values -> setup_check/thermal_cycle/
+        # power_off naming_scheme -> ZCU states[]) stays index-aligned; only the
+        # live sites are rendered. naming_scheme now holds chamber-slot numbers
+        # '1'..'9' (slot N == iengine N), so render in slot order for the operator.
         for i in range(20):
-            if i < 4:
-                col = 0  
-                row = i
-            else:
-                col = ((i - 4) // 4) + 1
-                row = (i - 4) % 4
-
-            # Create the checkbox and label for each
             chk_var = tk.BooleanVar()
-            chk_var.set(self.checkbox_values[i])
+            chk_var.set(False)
+            self.checkbox_values[i] = chk_var
 
+        render_order = sorted(self.live_indices, key=lambda i: int(self.naming_scheme[i]))
+        for live_pos, i in enumerate(render_order):
+            col = live_pos // 5
+            row = live_pos % 5
             checkbox = ttk.Checkbutton(
                 checkbox_frame,
-                text=f"{self.naming_scheme[i]}",   # Display the number next to the checkbox (1-indexed)
-                variable=chk_var,
+                text=f"Slot {self.naming_scheme[i]}",
+                variable=self.checkbox_values[i],
                 command=lambda idx=i: self.checkbox_selected(idx)  # Pass index to function
             )
             checkbox.grid(row=row, column=col, padx=10, pady=5, sticky="w")
-
-            # Store the checkbox variable if you need to access the values later
-            self.checkbox_values[i] = chk_var
 
 
         # Create a frame for the select/deselect buttons
@@ -276,14 +291,15 @@ class ThermalTestConfigScene(ttk.Frame):
         _parent.run_all_tests() 
         
     # Since BooleanVar is linked to the checkboxes, updating it will instantly reflect on the GUI.
+    # Only touch the live (rendered) sites — never set SFP0/LD_0 or the unwired sites.
     def select_all_checkbox(self):
-        # Set all checkbox values to True
-        for i in range(len(self.checkbox_values)):
+        # Set the live checkbox values to True
+        for i in self.live_indices:
             self.checkbox_values[i].set(True)  # Update BooleanVar
 
     # Since BooleanVar is linked to the checkboxes, updating it will instantly reflect on the GUI.
     def deselect_all_checkbox(self):
-        for i in range(len(self.checkbox_values)):
+        for i in self.live_indices:
             self.checkbox_values[i].set(False)  # Update BooleanVar
 
 

@@ -44,15 +44,15 @@ STATES = {
     "waiting": "Waiting",
 }
 naming_scheme = [
-    "SFP0", "SFP1", "SFP2", "SFP3",
-    "A1", "A2", "A3", "A4",
-    "B1", "B2", "B3", "B4",
+    "SFP0", "1", "2", "3",
+    "8", "9", "A3", "A4",
+    "4", "5", "6", "7",
     "C1", "C2", "C3", "C4",
     "D1", "D2", "D3", "D4",
 ]
 
 # Production runtime; set low for debug.
-# RUNTIME_M = 200
+#RUNTIME_M = 240
 RUNTIME_M = 0.5  # DEBUG: 30 seconds
 
 PID_FILE = '/tmp/hgcal_thermal.pid'

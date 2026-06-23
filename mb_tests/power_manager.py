@@ -27,9 +27,9 @@ logger = logging.getLogger(__name__)
 # Verify against your wiring before running; unmapped sites are silently
 # skipped, erroring boards are logged and skipped.
 SITE_MAP = {
-    'SFP0': (2, 1), 'SFP1': (2, 2), 'SFP2': (2, 3), 'SFP3': (2, 4),
-    'B1':   (3, 1), 'B2':   (3, 2), 'B3':   (3, 3), 'B4':   (3, 4),
-    'A1':   (4, 1), 'A2':   (4, 2), 'A3':   (4, 3), 'A4':   (4, 4),
+    'SFP0': (2, 1), '1': (2, 2), '2': (2, 3), '3': (2, 4),
+    '4':   (3, 1), '5':   (3, 2), '6':   (3, 3), '7':   (3, 4),
+    '8':   (4, 1), '9':   (4, 2), 'A3':   (4, 3), 'A4':   (4, 4),
 }
 
 # Seconds to wait after power-on before the ZCU starts I2C.

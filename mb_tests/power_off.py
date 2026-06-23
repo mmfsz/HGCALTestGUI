@@ -14,9 +14,9 @@ from power_manager import PowerManager
 logger = logging.getLogger('HGCALTestGUI.mb_tests.power_off')
 
 naming_scheme = [
-    "SFP0", "SFP1", "SFP2", "SFP3",
-    "A1", "A2", "A3", "A4",
-    "B1", "B2", "B3", "B4",
+    "SFP0", "1", "2", "3",
+    "8", "9", "A3", "A4",
+    "4", "5", "6", "7",
     "C1", "C2", "C3", "C4",
     "D1", "D2", "D3", "D4",
 ]
