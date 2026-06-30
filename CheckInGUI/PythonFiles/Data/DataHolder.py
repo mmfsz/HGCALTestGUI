@@ -170,6 +170,8 @@ class DataHolder():
         info_dict = {"full_id":self.get_full_ID(),"tester": self.data_dict['user_ID'], "test_type": test_name, "successful": self.data_dict["inspection_pass"], "comments": self.data_dict['comments']}
         logger.debug(info_dict)
 
+        os.makedirs("{}/JSONFiles".format(PythonFiles.__path__[0]), exist_ok=True)
+
         with open("{}/JSONFiles/storage.json".format(PythonFiles.__path__[0]), "w") as outfile:
             json.dump(info_dict, outfile)
 
